@@ -28,3 +28,5 @@
 @media(max-width:800px){.zoom-stops button{padding:8px 5px}.zoom-stops button span{display:none}}
 
 .scene-tools .reset-view{width:auto;display:flex;align-items:center;justify-content:center;gap:6px;padding:0 10px;align-self:flex-end}.reset-view span{font-size:9px;font-weight:550;white-space:nowrap}
+.sound-volume{display:flex;align-items:center;gap:7px;color:#a2b5ac;font-size:9px;white-space:nowrap}.sound-volume input{width:64px;height:3px;accent-color:#d9b77c;cursor:pointer}.sound-volume output{min-width:24px;font-variant-numeric:tabular-nums;font-size:8px}.experience:not(.atomic-experience) .transport-area{width:820px;max-width:calc(100% - 48px)}
+@media(max-width:800px){.experience:not(.atomic-experience) .transport{height:auto;min-height:88px;flex-wrap:wrap;justify-content:center;gap:8px 10px}.sound-volume{order:10;flex-basis:100%;justify-content:center}.sound-volume input{width:110px}.experience:not(.atomic-experience) .transport-area{width:calc(100% - 32px);max-width:none}}
