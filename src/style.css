@@ -26,3 +26,5 @@
 .atomic-experience .scene-label-layer{overflow:hidden}
 .zoom-stops button{gap:6px;padding:9px 6px}.zoom-stops button span{flex-shrink:0}
 @media(max-width:800px){.zoom-stops button{padding:8px 5px}.zoom-stops button span{display:none}}
+
+.scene-tools .reset-view{width:auto;display:flex;align-items:center;justify-content:center;gap:6px;padding:0 10px;align-self:flex-end}.reset-view span{font-size:9px;font-weight:550;white-space:nowrap}
