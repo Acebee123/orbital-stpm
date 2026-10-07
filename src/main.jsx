@@ -12,9 +12,10 @@ import {CONFIG,clamp,smooth,duration,bondStart,hydrogenDistance,CONTACT_OFFSET,s
 import {audio} from './audio';
 import {createCameraControl,takeCameraControl,releaseCameraControl,resetCameraControl,restartCameraTimeline,canGuideCamera,canFrameGeometry,geometryFramingDistance} from './camera-model.mjs';
 import './style.css';
-import {ATOMIC,atomicSourcePoint} from './atomic-model.mjs';
+import {ATOMIC} from './atomic-model.mjs';
 import {AtomicOrbitals} from './AtomicOrbitals';
-import {HYBRID_DURATION,HYBRID_STAGES,hybridStageAt,hybridRowPosition,hybridReveal} from './presentation-model.mjs';
+import {HybridDensityOrbital} from './HybridDensityOrbital';
+import {HYBRID_DURATION,HYBRID_STAGES,hybridStageAt,hybridReveal} from './presentation-model.mjs';
 import {zoomDepth,zoomDistance,dampedZoomDistance} from './zoom-model.mjs';
 
 const AMBER='#d9b77c',TEAL='#79b8aa';
@@ -26,58 +27,6 @@ const DENSITY_FRAGMENT=`uniform vec3 phaseColor; uniform float densityOpacity; u
 function DensityMaterial({color,opacity=.42}){
  const uniforms=React.useMemo(()=>({phaseColor:{value:new THREE.Color(color)},densityOpacity:{value:opacity},glow:{value:.12}}),[color]);
  return <shaderMaterial uniforms={uniforms} vertexShader={DENSITY_VERTEX} fragmentShader={DENSITY_FRAGMENT} transparent depthWrite={false} side={THREE.FrontSide}/>;
-}
-
-// Fixed topology on both ends of every morph. Each source surface is deformed,
-// not swapped or cross-faded; phase lobes remain separate across their node.
-function makeOrbital(index,negative){
- const geometry=new THREE.SphereGeometry(1,44,28), attribute=geometry.attributes.position;
- const source=new Float32Array(attribute.array.length),target=new Float32Array(attribute.array.length);
- for(let i=0;i<attribute.count;i++){
-   const x=attribute.getX(i),y=attribute.getY(i),z=attribute.getZ(i);
-   const sign=negative?-1:1;
-   source.set(atomicSourcePoint(index,negative,x,y,z),i*3);
-   const length=negative?.52:2.38, width=negative?.28:.77;
-   target[i*3]=sign*length*(x+1)/2;
-   const profile=.85+.15*x;
-   target[i*3+1]=y*width*profile;target[i*3+2]=z*width*profile;
- }
- return {geometry,source,target};
-}
-
-function Orbital({index,config,clock,selected,onSelect,labels,labelHost}){
- const positive=useRef(),negative=useRef(),group=useRef(),radialCore=useRef(),labelAnchor=useRef();
- const meshes=React.useMemo(()=>[makeOrbital(index,false),makeOrbital(index,true)],[index]);
- useEffect(()=>()=>meshes.forEach(m=>m.geometry.dispose()),[meshes]);
- const initial=axisQuaternion(index===0?[1,0,0]:[[1,0,0],[0,1,0],[0,0,1]][index-1]);
- const final=axisQuaternion(config.directions[index]);
- const sourcePosition=hybridRowPosition(index,config.count);
- useFrame(({clock:real})=>{
-   const t=clock.current.time,{morph,gather:settle}=hybridMotion(t),event=bondMotion(t-bondStart(index));
-   group.current.position.copy(V(sourcePosition).multiplyScalar(1-settle));
-   group.current.scale.setScalar(.68+.32*settle);
-   if(labelAnchor.current){labelAnchor.current.position.copy(group.current.position);if(t<TIMING.morphStart)labelAnchor.current.position.y+=1.65;else labelAnchor.current.position.addScaledVector(V(config.directions[index]),2.65);}
-   group.current.quaternion.copy(initial).slerp(final,morph);
-   group.current.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1),.58*Math.sin(Math.PI*morph)));
-   if(radialCore.current){radialCore.current.scale.setScalar(Math.max(.0001,1-morph));radialCore.current.material.uniforms.densityOpacity.value=.4*(1-morph);}
-   meshes.forEach((m,j)=>{
-     const a=m.geometry.attributes.position;
-     const stretch=1+.075*event.compression;
-     if(m.lastMorph!==morph||m.lastStretch!==stretch){for(let i=0;i<a.array.length;i++)a.array[i]=THREE.MathUtils.lerp(m.source[i],m.target[i],morph)*(i%3===0?stretch:1);a.needsUpdate=true;m.geometry.computeVertexNormals();m.lastMorph=morph;m.lastStretch=stretch;}
-     const mat=(j?negative:positive).current.material;
-     mat.uniforms.densityOpacity.value=(j&&index===0?.4*morph:.48)*(1+(.03+.09*event.contact)*Math.sin(real.elapsedTime*.95+index*.6));
-     mat.uniforms.glow.value=selected===index?.95:.16+.52*event.contact;
-   });
- });
- const click=e=>{e.stopPropagation();onSelect(selected===index?null:index)};
- return <><group ref={group}>
-   {index===0&&<mesh ref={radialCore}><sphereGeometry args={[.82*2/7,44,28]}/><DensityMaterial color={TEAL}/></mesh>}
-   {meshes.map((m,j)=><mesh key={j} ref={j?negative:positive} geometry={m.geometry} onClick={click} onPointerOver={()=>document.body.style.cursor='pointer'} onPointerOut={()=>document.body.style.cursor='auto'}>
-     <DensityMaterial color={j?TEAL:AMBER}/>
-   </mesh>)}
- </group><group ref={labelAnchor}>
-   {labels&&<Html portal={labelHost} center distanceFactor={11} zIndexRange={[3,0]}><span className={`orbital-label ${selected===index?'highlighted':''}`}>{clock.current.time<TIMING.atomicHold?['2s','2pₓ','2pᵧ','2p𝓏'][index]:clock.current.time<TIMING.morphEnd?`mixing · ${index+1}`:`${config.label} · ${index+1}`}</span></Html>}
- </group></>
 }
 
 function Nucleus({symbol,position=[0,0,0],hydrogen=false,labels=true,labelHost}){
@@ -189,7 +138,7 @@ function Studio({config,clock,selected,onSelect,labels,stage,resetKey,guided,onI
   <group ref={world} position={[0,.5,0]}>
    {!atomic&&!hybridOnly&&<Nucleus symbol={config.atom} labels={false}/>}
    {atomic?<AtomicOrbitals orbital={orbital} labels={labels} axes={axes} cutaway={cutaway} selected={atomicSelected} onSelect={onAtomicSelect} labelHost={labelHost} zoom={zoom} motion={motion}/>:<>
-   {config.directions.map((_,i)=><React.Fragment key={i}><Orbital index={i} config={config} clock={clock} selected={selected} onSelect={onSelect} labels={labels} labelHost={labelHost}/>{!hybridOnly&&<Partner index={i} config={config} clock={clock} labels={labels} labelHost={labelHost}/>}</React.Fragment>)}
+   {config.directions.map((_,i)=><React.Fragment key={i}><HybridDensityOrbital index={i} config={config} clock={clock} selected={selected} onSelect={onSelect} labels={labels} labelHost={labelHost}/>{!hybridOnly&&<Partner index={i} config={config} clock={clock} labels={labels} labelHost={labelHost}/>}</React.Fragment>)}
    {stage===3&&labels&&<Angle config={config} labelHost={labelHost}/>}
    {labels&&!hybridOnly&&<Html portal={labelHost} center position={[0,0,.05]} distanceFactor={12} zIndexRange={[6,5]}><span className="nucleus-label">{config.atom}</span></Html>}
    </>}
