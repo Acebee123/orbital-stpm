@@ -2,8 +2,7 @@ import React,{useMemo,useRef,useEffect} from 'react';
 import {useFrame} from '@react-three/fiber';
 import {Html} from '@react-three/drei';
 import * as THREE from 'three';
-import {hybridMotion,TIMING,smooth} from './model.mjs';
-import {HybridDensityVolume} from './HybridDensityVolume';
+import {hybridMotion,TIMING} from './model.mjs';
 import {hybridRowPosition} from './presentation-model.mjs';
 import {hybridSourceSamples,hybridDensitySamples} from './hybrid-density.mjs';
 const targets=new Map(),sources=new Map(),xaxis=new THREE.Vector3(1,0,0);
@@ -11,8 +10,8 @@ const direction=d=>new THREE.Quaternion().setFromUnitVectors(xaxis,new THREE.Vec
 const vertex=`attribute vec3 targetPosition;attribute float sourcePhase;attribute float targetPhase;attribute float sampleSeed;attribute float sourceWeight;attribute float targetWeight;
 uniform float morph;uniform float stretch;uniform float time;uniform float pixelRatio;varying vec3 phaseColor;varying float alphaWeight;varying float brightness;
 vec3 phase(float value){return value<0.?vec3(.34,.57,.53):vec3(.72,.57,.34);}
-void main(){vec3 densityPoint=mix(position,targetPosition,morph);densityPoint.x*=stretch;vec4 p=modelViewMatrix*vec4(densityPoint,1.);float weight=mix(sourceWeight,targetWeight,morph);phaseColor=mix(phase(sourcePhase),phase(targetPhase),morph);float shimmer=.96+.04*sin(time*.35+sampleSeed);alphaWeight=weight*shimmer;brightness=.64+.36*sqrt(weight);gl_Position=projectionMatrix*p;gl_PointSize=clamp(mix(14.,11.,morph)*pixelRatio*(.75+.25*sqrt(weight))/max(.6,-p.z),.65,2.8);}`;
-const fragment=`uniform float intensity;uniform float highlight;uniform float morph;varying vec3 phaseColor;varying float alphaWeight;varying float brightness;void main(){vec2 uv=gl_PointCoord-.5;float r=length(uv);if(r>.5)discard;float softPoint=exp(-r*r*18.)*(1.-smoothstep(.35,.5,r));gl_FragColor=vec4(phaseColor*brightness*(1.+highlight*.15),softPoint*mix(.19,.15,morph)*alphaWeight*intensity);
+void main(){vec3 densityPoint=mix(position,targetPosition,morph);densityPoint.x*=stretch;vec4 p=modelViewMatrix*vec4(densityPoint,1.);float weight=mix(sourceWeight,targetWeight,morph);phaseColor=mix(phase(sourcePhase),phase(targetPhase),morph);float shimmer=.88+.12*sin(time*.35+sampleSeed);float accent=step(.78,fract(sampleSeed*1.618));alphaWeight=weight*shimmer*mix(.20,1.,accent);brightness=.62+.38*sqrt(weight);gl_Position=projectionMatrix*p;float pointSize=mix(14.,22.,accent)*pixelRatio*(.68+.32*sqrt(weight))*(.86+.14*sin(sampleSeed*2.))/max(.6,-p.z);gl_PointSize=clamp(pointSize,mix(.65,1.35,accent)*pixelRatio,mix(1.6,2.7,accent)*pixelRatio);}`;
+const fragment=`uniform float intensity;uniform float highlight;uniform float morph;varying vec3 phaseColor;varying float alphaWeight;varying float brightness;void main(){vec2 uv=gl_PointCoord-.5;float r=length(uv);if(r>.5)discard;float softPoint=exp(-r*r*24.)*(1.-smoothstep(.38,.5,r));float core=exp(-r*r*65.);vec3 color=mix(phaseColor,vec3(.91,.89,.79),core*.16)*brightness*(1.+highlight*.15);gl_FragColor=vec4(color,softPoint*mix(.25,.42,morph)*alphaWeight*intensity);
 #include <tonemapping_fragment>
 #include <colorspace_fragment>
 }`;
@@ -37,7 +36,7 @@ export function HybridDensityOrbital({index,config,clock,selected,onSelect,label
   group.current.position.copy(row).multiplyScalar(1-gather);group.current.scale.setScalar(.68+.32*gather);
   group.current.quaternion.copy(initial).slerp(final,morph).premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1),.58*Math.sin(Math.PI*morph)));
   const u=points.current.material.uniforms;
-  u.morph.value=morph;u.stretch.value=stretch;u.time.value=real.elapsedTime;u.pixelRatio.value=gl.getPixelRatio();u.intensity.value=1-smooth((morph-.025)/.30);u.highlight.value=selected===index?1:0;
+  u.morph.value=morph;u.stretch.value=stretch;u.time.value=real.elapsedTime;u.pixelRatio.value=gl.getPixelRatio();u.intensity.value=1;u.highlight.value=selected===index?1:0;
   if(label.current){label.current.position.copy(group.current.position);if(t<TIMING.morphStart)label.current.position.y+=1.65;else label.current.position.addScaledVector(new THREE.Vector3(...config.directions[index]),3.28);}
   if(data.lastMorph!==morph||data.lastStretch!==stretch){
    const position=data.picker.geometry.attributes.position;
@@ -51,5 +50,5 @@ export function HybridDensityOrbital({index,config,clock,selected,onSelect,label
  };
  return <><group ref={group}><points ref={points} geometry={data.geometry} frustumCulled={false} raycast={raycast} onClick={e=>{e.stopPropagation();onSelect(selected===index?null:index)}} onPointerOver={()=>document.body.style.cursor='pointer'} onPointerOut={()=>document.body.style.cursor='auto'}>
   <shaderMaterial uniforms={uniforms} vertexShader={vertex} fragmentShader={fragment} transparent depthWrite={false}/>
- </points><HybridDensityVolume clock={clock} index={index} selected={selected}/></group><group ref={label}>{labels&&<Html portal={labelHost} center distanceFactor={14} zIndexRange={[3,0]}><span className={`orbital-label hybrid-label ${selected===index?'highlighted':''}`}>{clock.current.time<TIMING.atomicHold?['2s','2pₓ','2pᵧ','2p𝓏'][index]:clock.current.time<TIMING.morphEnd?`mixing · ${index+1}`:`${config.label} · ${index+1}`}</span></Html>}</group></>;
+ </points></group><group ref={label}>{labels&&<Html portal={labelHost} center distanceFactor={14} zIndexRange={[3,0]}><span className={`orbital-label hybrid-label ${selected===index?'highlighted':''}`}>{clock.current.time<TIMING.atomicHold?['2s','2pₓ','2pᵧ','2p𝓏'][index]:clock.current.time<TIMING.morphEnd?`mixing · ${index+1}`:`${config.label} · ${index+1}`}</span></Html>}</group></>;
 }
