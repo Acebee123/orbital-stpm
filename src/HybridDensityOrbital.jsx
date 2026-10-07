@@ -8,10 +8,10 @@ import {hybridSourceSamples,hybridDensitySamples} from './hybrid-density.mjs';
 const targets=new Map(),sources=new Map(),xaxis=new THREE.Vector3(1,0,0);
 const direction=d=>new THREE.Quaternion().setFromUnitVectors(xaxis,new THREE.Vector3(...d));
 const vertex=`attribute vec3 targetPosition;attribute float sourcePhase;attribute float targetPhase;attribute float sampleSeed;attribute float sourceWeight;attribute float targetWeight;
-uniform float morph;uniform float stretch;uniform float time;uniform float pixelRatio;varying vec3 phaseColor;varying float alphaWeight;
-vec3 phase(float sign){return sign<0.?vec3(.47,.72,.67):vec3(.85,.72,.49);}
-void main(){vec3 densityPoint=mix(position,targetPosition,morph);densityPoint.x*=stretch;vec4 p=modelViewMatrix*vec4(densityPoint,1.);phaseColor=mix(phase(sourcePhase),phase(targetPhase),morph);alphaWeight=mix(sourceWeight,targetWeight,morph)*(.78+.22*sin(time*.45+sampleSeed));gl_Position=projectionMatrix*p;gl_PointSize=clamp(24.*pixelRatio/max(.6,-p.z),1.2,6.);}`;
-const fragment=`uniform float intensity;uniform float highlight;varying vec3 phaseColor;varying float alphaWeight;void main(){vec2 uv=gl_PointCoord-.5;float r=length(uv);if(r>.5)discard;gl_FragColor=vec4(phaseColor*(1.+highlight*.3),exp(-r*r*14.)*.27*alphaWeight*intensity);
+uniform float morph;uniform float stretch;uniform float time;uniform float pixelRatio;varying vec3 phaseColor;varying float alphaWeight;varying float brightness;
+vec3 phase(float value){return value<0.?vec3(.34,.57,.53):vec3(.72,.57,.34);}
+void main(){vec3 densityPoint=mix(position,targetPosition,morph);densityPoint.x*=stretch;vec4 p=modelViewMatrix*vec4(densityPoint,1.);float weight=mix(sourceWeight,targetWeight,morph);phaseColor=mix(phase(sourcePhase),phase(targetPhase),morph);float shimmer=.96+.04*sin(time*.35+sampleSeed);alphaWeight=weight*shimmer;brightness=.64+.36*sqrt(weight);gl_Position=projectionMatrix*p;gl_PointSize=clamp(mix(14.,11.,morph)*pixelRatio*(.75+.25*sqrt(weight))/max(.6,-p.z),.65,2.8);}`;
+const fragment=`uniform float intensity;uniform float highlight;uniform float morph;varying vec3 phaseColor;varying float alphaWeight;varying float brightness;void main(){vec2 uv=gl_PointCoord-.5;float r=length(uv);if(r>.5)discard;float softPoint=exp(-r*r*18.)*(1.-smoothstep(.35,.5,r));gl_FragColor=vec4(phaseColor*brightness*(1.+highlight*.15),softPoint*mix(.19,.15,morph)*alphaWeight*intensity);
 #include <tonemapping_fragment>
 #include <colorspace_fragment>
 }`;
@@ -37,7 +37,7 @@ export function HybridDensityOrbital({index,config,clock,selected,onSelect,label
   group.current.quaternion.copy(initial).slerp(final,morph).premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1),.58*Math.sin(Math.PI*morph)));
   const u=points.current.material.uniforms;
   u.morph.value=morph;u.stretch.value=stretch;u.time.value=real.elapsedTime;u.pixelRatio.value=gl.getPixelRatio();u.intensity.value=1;u.highlight.value=selected===index?1:0;
-  if(label.current){label.current.position.copy(group.current.position);if(t<TIMING.morphStart)label.current.position.y+=1.65;else label.current.position.addScaledVector(new THREE.Vector3(...config.directions[index]),2.65);}
+  if(label.current){label.current.position.copy(group.current.position);if(t<TIMING.morphStart)label.current.position.y+=1.65;else label.current.position.addScaledVector(new THREE.Vector3(...config.directions[index]),3.28);}
   if(data.lastMorph!==morph||data.lastStretch!==stretch){
    const position=data.picker.geometry.attributes.position;
    data.indices.forEach((sample,i)=>{for(let k=0;k<3;k++)position.array[i*3+k]=THREE.MathUtils.lerp(data.source.positions[sample*3+k],data.target.positions[sample*3+k],morph)*(k===0?stretch:1);});
@@ -50,5 +50,5 @@ export function HybridDensityOrbital({index,config,clock,selected,onSelect,label
  };
  return <><group ref={group}><points ref={points} geometry={data.geometry} frustumCulled={false} raycast={raycast} onClick={e=>{e.stopPropagation();onSelect(selected===index?null:index)}} onPointerOver={()=>document.body.style.cursor='pointer'} onPointerOut={()=>document.body.style.cursor='auto'}>
   <shaderMaterial uniforms={uniforms} vertexShader={vertex} fragmentShader={fragment} transparent depthWrite={false}/>
- </points></group><group ref={label}>{labels&&<Html portal={labelHost} center distanceFactor={11} zIndexRange={[3,0]}><span className={`orbital-label ${selected===index?'highlighted':''}`}>{clock.current.time<TIMING.atomicHold?['2s','2pₓ','2pᵧ','2p𝓏'][index]:clock.current.time<TIMING.morphEnd?`mixing · ${index+1}`:`${config.label} · ${index+1}`}</span></Html>}</group></>;
+ </points></group><group ref={label}>{labels&&<Html portal={labelHost} center distanceFactor={14} zIndexRange={[3,0]}><span className={`orbital-label hybrid-label ${selected===index?'highlighted':''}`}>{clock.current.time<TIMING.atomicHold?['2s','2pₓ','2pᵧ','2p𝓏'][index]:clock.current.time<TIMING.morphEnd?`mixing · ${index+1}`:`${config.label} · ${index+1}`}</span></Html>}</group></>;
 }

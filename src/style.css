@@ -30,3 +30,6 @@
 .scene-tools .reset-view{width:auto;display:flex;align-items:center;justify-content:center;gap:6px;padding:0 10px;align-self:flex-end}.reset-view span{font-size:9px;font-weight:550;white-space:nowrap}
 .sound-volume{display:flex;align-items:center;gap:7px;color:#a2b5ac;font-size:9px;white-space:nowrap}.sound-volume input{width:64px;height:3px;accent-color:#d9b77c;cursor:pointer}.sound-volume output{min-width:24px;font-variant-numeric:tabular-nums;font-size:8px}.experience:not(.atomic-experience) .transport-area{width:820px;max-width:calc(100% - 48px)}
 @media(max-width:800px){.experience:not(.atomic-experience) .transport{height:auto;min-height:88px;flex-wrap:wrap;justify-content:center;gap:8px 10px}.sound-volume{order:10;flex-basis:100%;justify-content:center}.sound-volume input{width:110px}.experience:not(.atomic-experience) .transport-area{width:calc(100% - 32px);max-width:none}}
+
+/* Quiet annotations let the hybrid density carry the lesson. */
+.hybrid-label{font-size:9px;letter-spacing:.15px;color:#b7baa4;padding:2px 4px;background:#18272238;border-color:#ffffff0b}.hybrid-label.highlighted{color:#ddccaa;border-color:#d6b37366}.angle-label{font-size:10px;color:#baa984;background:#17252044;border-color:#b7a27312;padding:3px 5px}

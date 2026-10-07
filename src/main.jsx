@@ -26,7 +26,7 @@ function Angle({config,labelHost}){
  const ortho=b.clone().addScaledVector(a,-a.dot(b)).normalize();if(config.key==='sp')ortho.set(0,1,0);
  const pts=Array.from({length:65},(_,i)=>a.clone().multiplyScalar(Math.cos(angle*i/64)).addScaledVector(ortho,Math.sin(angle*i/64)).multiplyScalar(1.06));
  const mid=pts[32].clone().multiplyScalar(1.33);
- return <group><Line points={pts} color="#e0c18c" lineWidth={1} transparent opacity={.7}/><Html portal={labelHost} position={mid} center zIndexRange={[4,0]}><span className="angle-label">{config.angle}</span></Html></group>
+ return <group><Line points={pts} color="#e0c18c" lineWidth={.65} transparent opacity={.36}/><Html portal={labelHost} position={mid} center zIndexRange={[4,0]}><span className="angle-label">{config.angle}</span></Html></group>
 }
 
 function SoftBloom(){
