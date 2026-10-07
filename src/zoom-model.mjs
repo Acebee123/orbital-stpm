@@ -1,23 +1,53 @@
 import {ATOMIC,surfaceSlots} from './atomic-model.mjs';
 const clamp=x=>Math.min(1,Math.max(0,x));
 const smooth=x=>{x=clamp(x);return x*x*(3-2*x)};
-export const ZOOM_DISTANCE={cloud:14.5,density:6.5,nucleus:2.5,structure:1.5};
-export const zoomDepth=distance=>clamp(Math.log(14.5/Math.max(1.5,distance))/Math.log(14.5/1.5));
-export const zoomDistance=depth=>14.5*Math.exp(-clamp(depth)*Math.log(14.5/1.5));
+// Reserve a wide, shallow camera range for observing the whole distribution.
+// Nucleus approach occupies its own range and requires renewed input.
+const ZOOM_PATH=[[0,14.5],[.35,9],[.7,6.5],[.85,2.5],[1,1.5]];
+export function zoomDistance(depth){
+ const z=clamp(depth);
+ for(let i=1;i<ZOOM_PATH.length;i++){const [end,b]=ZOOM_PATH[i],[start,a]=ZOOM_PATH[i-1];if(z<=end)return a*Math.exp((z-start)/(end-start)*Math.log(b/a));}
+ return 1.5;
+}
+export function zoomDepth(distance){
+ const d=Math.max(1.5,Math.min(14.5,distance));
+ for(let i=1;i<ZOOM_PATH.length;i++){const [end,b]=ZOOM_PATH[i],[start,a]=ZOOM_PATH[i-1];if(d>=b)return start+(end-start)*Math.log(d/a)/Math.log(b/a);}
+ return 1;
+}
+export const ZOOM_DISTANCE={cloud:14.5,density:zoomDistance(.55),nucleus:zoomDistance(.82),structure:1.5};
+export const createZoomIntent=()=>({lastInput:-Infinity,densityObserved:false,deepGesture:false});
+export function observeZoom(intent,depth){
+ if(depth<.35){intent.densityObserved=false;intent.deepGesture=false;}
+ else if(depth>=.5&&depth<.7)intent.densityObserved=true;
+}
+// Momentum from the gesture that entered density cannot carry into the nucleus.
+// A new pinch, discrete control press, or scroll after a pause grants that intent.
+export function requestZoomIntent(intent,requested,depth,now,fresh=false){
+ observeZoom(intent,depth);
+ if(fresh||now-intent.lastInput>400)intent.deepGesture=depth>=.7||(intent.densityObserved&&depth>=.5);
+ intent.lastInput=now;
+ const target=clamp(requested);
+ if(target<.35){intent.densityObserved=false;intent.deepGesture=false;}
+ return target>=.7&&depth<.7&&!intent.deepGesture?.69:target;
+}
+export function dampedZoomDistance(distance,target,delta){
+ const depth=zoomDepth(distance);
+ const densityBrake=smooth((depth-.28)/.07)*(1-smooth((depth-.7)/.05));
+ const rate=4.5-2.8*densityBrake;
+ return distance+(target-distance)*(1-Math.exp(-Math.min(delta,.1)*rate));
+}
 export function zoomReveal(depth){
- const detail=smooth((depth-.27)/.18),context=1-smooth((depth-.58)/.19);
- const cloudContext=1-smooth((depth-.52)/.22),surfaceReveal=smooth((depth-.08)/.27);
- return {detail,cloud:detail*(.1+.9*cloudContext),nucleus:smooth((depth-.48)/.24),
-  magnification:smooth((depth-.82)/.16),nucleons:smooth((depth-.86)/.12),context,
-  surfaceOpacity:(.4-.18*surfaceReveal)*context,
-  stage:depth<.08?'cloud':depth<.27?'approach':depth<.65?'density':depth<.82?'nucleus':'structure'};
+ const detail=smooth((depth-.35)/.22),context=1-smooth((depth-.7)/.15);
+ return {detail,cloud:detail*(.1+.9*context),nucleus:smooth((depth-.7)/.15),
+  magnification:smooth((depth-.85)/.15),nucleons:smooth((depth-.85)/.15),context,
+  surfaceOpacity:(.4-.2*detail)*context,
+  stage:depth<.35?'cloud':depth<.7?'density':depth<.85?'nucleus':'structure'};
 }
 export const ZOOM_STAGES={
  cloud:{step:1,helper:'Zoom inward to reveal internal probability density'},
- approach:{step:2,kicker:'ENTERING THE ORBITAL',title:'Look inside the boundary',description:'The orbital shape stays visible as its surface becomes transparent. This boundary marks a probability region, not a solid shell.',helper:'Orbital boundary → inner probability density'},
- density:{step:3,kicker:'|ψ|² · PROBABILITY PER UNIT VOLUME',title:'Electron probability density',description:'Brighter regions show greater probability. The density follows the orbital shape and its nodes; samples do not trace electron paths.',helper:'Probability samples · not individual electrons'},
- nucleus:{step:4,kicker:'CLOSE VIEW · NUCLEUS IN FOCUS',title:'The nucleus at the centre',description:'The cloud recedes into a faint context around the positively charged nucleus. Zoom deeper to explore its magnified nuclear structure.',helper:'Faint density for context · zoom deeper for nuclear structure'},
- structure:{step:5,kicker:'EDUCATIONAL MAGNIFICATION · ¹²C',title:'Magnified nuclear structure',description:'Six protons and six neutrons. Nuclear and orbital sizes use independent educational scales, not literal atomic scale.',helper:'Magnified educational view · not literal atomic scale'}
+ density:{step:2,kicker:'|ψ|² · PROBABILITY PER UNIT VOLUME',title:'Electron probability density',description:'Pause and observe the distribution inside the boundary. Brighter regions indicate greater probability; nodes remain empty. Zoom again when you are ready to approach the nucleus.',helper:'Observe the density · zoom again to move deeper'},
+ nucleus:{step:3,kicker:'CLOSE VIEW · NUCLEUS IN FOCUS',title:'The nucleus at the centre',description:'The cloud recedes into a faint context around the positively charged nucleus. Zoom deeper to explore its magnified nuclear structure.',helper:'Faint density for context · zoom deeper for nuclear structure'},
+ structure:{step:4,kicker:'EDUCATIONAL MAGNIFICATION · ¹²C',title:'Magnified nuclear structure',description:'Six protons and six neutrons. Nuclear and orbital sizes use independent educational scales, not literal atomic scale.',helper:'Magnified educational view · not literal atomic scale'}
 };
 export const NUCLEONS=Object.freeze([
  [1,1,0],[1,-1,0],[-1,1,0],[-1,-1,0],
