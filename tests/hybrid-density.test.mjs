@@ -45,11 +45,11 @@ test('starting distributions reuse the atomic sampler, with no mutation of later
  }
 });
 
-test('sculpted lobes taper from a shared open origin with a smaller elongated reverse lobe',()=>{
+test('sculpted lobes taper from a shared origin with a fuller main body and smaller reverse lobe',()=>{
  for(const [sign,lobe] of [[1,HYBRID_LOBES.front],[-1,HYBRID_LOBES.back]]){
   assert.equal(hybridLobeRadius(0),0);assert.equal(hybridLobeRadius(sign*lobe.length),0);
-  assert.ok(lobe.length/lobe.width>3.5);
-  assert.ok(hybridLobeRadius(sign*lobe.length*.05)<hybridLobeRadius(sign*lobe.length*.5)*.2);
+  assert.ok(lobe.length/lobe.width>2.5);
+  assert.ok(hybridLobeRadius(sign*lobe.length*.05)<hybridLobeRadius(sign*lobe.length*.5)*.4);
   const x=sign*lobe.length*.6,radius=hybridLobeRadius(x);
   let prior=Infinity;
   for(const f of [0,.2,.4,.6,.8,.95,1]){
