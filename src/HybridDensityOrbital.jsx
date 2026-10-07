@@ -2,7 +2,7 @@ import React,{useMemo,useRef,useEffect} from 'react';
 import {useFrame} from '@react-three/fiber';
 import {Html} from '@react-three/drei';
 import * as THREE from 'three';
-import {hybridMotion,bondMotion,bondStart,TIMING} from './model.mjs';
+import {hybridMotion,TIMING} from './model.mjs';
 import {hybridRowPosition} from './presentation-model.mjs';
 import {hybridSourceSamples,hybridDensitySamples} from './hybrid-density.mjs';
 const targets=new Map(),sources=new Map(),xaxis=new THREE.Vector3(1,0,0);
@@ -32,11 +32,11 @@ export function HybridDensityOrbital({index,config,clock,selected,onSelect,label
  const initial=direction(index===0?[1,0,0]:[[1,0,0],[0,1,0],[0,0,1]][index-1]),final=direction(config.directions[index]);
  const row=new THREE.Vector3(...hybridRowPosition(index,config.count));
  useFrame(({gl,clock:real})=>{
-  const t=clock.current.time,{gather,morph}=hybridMotion(t),event=bondMotion(t-bondStart(index)),stretch=1+.075*event.compression;
+  const t=clock.current.time,{gather,morph}=hybridMotion(t),stretch=1;
   group.current.position.copy(row).multiplyScalar(1-gather);group.current.scale.setScalar(.68+.32*gather);
   group.current.quaternion.copy(initial).slerp(final,morph).premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1),.58*Math.sin(Math.PI*morph)));
   const u=points.current.material.uniforms;
-  u.morph.value=morph;u.stretch.value=stretch;u.time.value=real.elapsedTime;u.pixelRatio.value=gl.getPixelRatio();u.intensity.value=1+.45*event.contact;u.highlight.value=selected===index?1:0;
+  u.morph.value=morph;u.stretch.value=stretch;u.time.value=real.elapsedTime;u.pixelRatio.value=gl.getPixelRatio();u.intensity.value=1;u.highlight.value=selected===index?1:0;
   if(label.current){label.current.position.copy(group.current.position);if(t<TIMING.morphStart)label.current.position.y+=1.65;else label.current.position.addScaledVector(new THREE.Vector3(...config.directions[index]),2.65);}
   if(data.lastMorph!==morph||data.lastStretch!==stretch){
    const position=data.picker.geometry.attributes.position;

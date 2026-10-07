@@ -1,7 +1,7 @@
 export const CONFIG = {
-  sp: { key:'sp', label:'sp', count:2, atom:'Be', name:'Beryllium hydride', formula:'BeH₂', geometry:'Linear', angle:'180°', s:50, input:'s + p', note:'Gas-phase BeH₂; the solid has a polymeric structure.', directions:[[1,0,0],[-1,0,0]] },
-  sp2: { key:'sp2', label:'sp²', count:3, atom:'B', name:'Borane', formula:'BH₃', geometry:'Trigonal planar', angle:'120°', s:33.3, input:'s + p + p', note:'Isolated BH₃ is shown; borane commonly dimerises to B₂H₆.', directions:[[0,1,0],[Math.sqrt(3)/2,-.5,0],[-Math.sqrt(3)/2,-.5,0]] },
-  sp3: { key:'sp3', label:'sp³', count:4, atom:'C', name:'Methane', formula:'CH₄', geometry:'Tetrahedral', angle:'109.5°', s:25, input:'s + p + p + p', note:'Four equivalent C–H σ bonds point toward the vertices of a tetrahedron.', directions:[[0,1,0],[Math.sqrt(8/9),-1/3,0],[-Math.sqrt(2/9),-1/3,Math.sqrt(2/3)],[-Math.sqrt(2/9),-1/3,-Math.sqrt(2/3)]] }
+  sp: { key:'sp', label:'sp', count:2, geometry:'Linear', angle:'180°', s:50, input:'s + p', directions:[[1,0,0],[-1,0,0]] },
+  sp2: { key:'sp2', label:'sp²', count:3, geometry:'Trigonal planar', angle:'120°', s:33.3, input:'s + p + p', directions:[[0,1,0],[Math.sqrt(3)/2,-.5,0],[-Math.sqrt(3)/2,-.5,0]] },
+  sp3: { key:'sp3', label:'sp³', count:4, geometry:'Tetrahedral', angle:'109.5°', s:25, input:'s + p + p + p', directions:[[0,1,0],[Math.sqrt(8/9),-1/3,0],[-Math.sqrt(2/9),-1/3,Math.sqrt(2/3)],[-Math.sqrt(2/9),-1/3,-Math.sqrt(2/3)]] }
 };
 export const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
 export const smooth=x=>{x=clamp(x);return x*x*(3-2*x)};
