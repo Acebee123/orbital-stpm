@@ -1,6 +1,6 @@
 # Orbital — STPM Chemistry Topic 3
 
-Premium React Three Fiber / Three.js learning flow: Atomic Orbitals → Hybridisation → Orbital Overlap → Bond Formation → Molecular Geometry.
+Premium React Three Fiber / Three.js learning flow: Atomic Orbitals → Hybridisation → Hybrid orbital arrangement.
 
 Run `pnpm install`, then `pnpm dev`. Build with `pnpm build`; verify scientific and interaction invariants with `pnpm test`.
 
@@ -16,18 +16,14 @@ Drag, scroll or pinch to inspect. Overview, Closer and the zoom slider smoothly 
 
 ## Hybridisation
 
-Only one s and one, two or three p orbitals enter sp, sp² and sp³. There are no molecular examples, hydrogen partners, nuclei or sigma bonds in this section. Source orbitals use the established atomic source geometry.
+Only one s and one, two or three p orbitals enter sp, sp² and sp³. There are no molecular examples, hydrogen partners, nuclei or sigma bonds in this section. Source orbitals reuse the Atomic Orbitals probability sampler. All starting, intermediate and final orbitals are rendered exclusively as dense points, with no meshes, shells or orbital outlines. Each hybrid has 56,000 probability samples; phase colours remain amber and teal. Sample intensity shimmers gently without particle trajectories.
 
-The independent 16-second teaching timeline holds the source orbitals in a clean, centred row for three seconds, moves them inward, pauses before mixing, then deforms and reorients their geometry over six seconds. Four seconds remain to inspect the final equivalent orbitals: linear 180°, trigonal planar 120°, tetrahedral 109.5°. These exact directions are shared with the separate Bond Formation section. The morph represents linear combinations of wavefunctions; it is not a literal reaction or excitation. Replay, next steps, seeking and speed operate on this hybrid-only timeline.
+The independent 16-second teaching timeline holds the source orbitals in a clean, centred row for three seconds, moves them inward, pauses before mixing, then continuously redistributes and reorients their probability samples over six seconds using a GPU morph. Final samples follow the squared linear combination of hydrogen-like 2s and direction-aligned 2p wavefunctions, with exact 1/2, 1/3 or 1/4 s character and a qualitative shape envelope. Four seconds remain to inspect the final equivalent orbitals: linear 180°, trigonal planar 120°, tetrahedral 109.5°. The morph represents linear combinations of wavefunctions; it is not a literal reaction or excitation. Replay, next steps, seeking and speed operate on this hybrid-only timeline.
 
-## Bond Formation
+Camera orbit and scroll/pinch zoom stay enabled during the hybridisation animation. Input immediately yields cinematic guidance without pausing the chemistry. The user's angle survives release, pause/resume, next steps, timeline navigation, replay and hybrid selection. Only Reset View explicitly restores the teaching angle through damping. Playback pauses when the browser tab is hidden.
 
-The separate Bond Formation module retains its existing molecular examples, sequential hydrogen approach, whoosh/contact/energy sounds, compression, orbital overlap, density build-up, sigma bonds and final geometry reveal. Each partner accelerates and brakes toward contact, holds briefly, then overlaps. Increased density between nuclei precedes the bond. The molecule rotates slowly as a rigid structure and holds its final geometry.
+Sound uses the native Web Audio API. The original noise and oscillator sources, filters and pitch sweeps remain. Separate whoosh, impact and energy GainNodes feed a master GainNode and DynamicsCompressorNode. Sound Volume ramps master gain without clicks. Sound On/Off is separate and gesture-activated. Hybridisation uses movement and settling cues without bond-contact effects.
 
-Camera orbit and scroll/pinch zoom stay enabled during both animation modules. Input immediately yields cinematic guidance without pausing the chemistry. The user's angle survives release, pause/resume, next steps, timeline navigation, replay and hybrid selection. Only Reset View explicitly restores the teaching angle through damping. In Bond Formation, a necessary final pullback preserves the chosen direction and waits for a quiet interval. Contact impulses remain subtle. Playback pauses when the browser tab is hidden.
-
-Sound uses the native Web Audio API. The original noise and oscillator sources, filters and pitch sweeps remain. Separate whoosh, impact and energy GainNodes feed a master GainNode and DynamicsCompressorNode. Collision is strongest; bond formation is medium-high; whoosh builds during approach. Sound Volume ramps master gain without clicks. Sound On/Off is separate and gesture-activated. Hybridisation uses movement and settling cues without bond-contact effects.
-
-Tests cover all eleven dense distributions at production sample count, measured s size progression and radial nodes, exclusive s transition visibility, angular/radial nodes, phases and tails, z-up dz² orientation, centred source rows, paced hybrid-only holds, exact final directions and angles, preserved bond event order, camera ownership and framing, and native audio gain routing. Production bundling checks compiler status and output size.
+Tests cover all eleven dense distributions at production sample count, measured s size progression and radial nodes, exclusive s transition visibility, angular/radial nodes, phases and tails, z-up dz² orientation, centred source rows, paced hybrid-only holds, exact final directions and angles, camera ownership and framing, and native audio gain routing. Production bundling checks compiler status and output size.
 
 References: [Atomic orbital theory — OpenStax](https://openstax.org/books/chemistry-2e/pages/6-3-development-of-quantum-theory), [Hybrid atomic orbitals — LibreTexts](https://chem.libretexts.org/Bookshelves/General_Chemistry/Map%3A_Chemistry_-_Atoms_First_%28OpenSTAX%29/05%3A_Advanced_Theories_of_Covalent_Bonding/5.2%3A_Hybrid_Atomic_Orbitals).
