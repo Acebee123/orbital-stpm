@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {NUCLEONS,ZOOM_DISTANCE,ZOOM_STAGES,zoomDepth,zoomDistance,zoomReveal,radialAmplitude,angularAmplitude,probabilitySamples,orbitalEnvelope,envelopeWeight} from '../src/zoom-model.mjs';
+import {NUCLEONS,ZOOM_DISTANCE,ZOOM_STAGES,zoomDepth,zoomDistance,zoomReveal,radialAmplitude,angularAmplitude,probabilitySamples,orbitalEnvelope,envelopeWeight,createZoomIntent,observeZoom,requestZoomIntent,dampedZoomDistance} from '../src/zoom-model.mjs';
 import {ATOMIC,phaseAt,radialNodes,surfaceSlots,lobeSourcePoint} from '../src/atomic-model.mjs';
 test('zoom is reversible and reveals cloud, density, nucleus and nucleons progressively',()=>{
  for(let z=0;z<=1;z+=.05)assert.ok(Math.abs(zoomDepth(zoomDistance(z))-z)<1e-12);
@@ -30,18 +30,49 @@ test('density samples have correct phase and statistical orientation, without tr
  assert.deepEqual(Object.keys(sample).sort(),['positions','seeds','signs','weights']);
 });
 test('normal distance has zero inner cloud, and zoom-out restores the surface exactly',()=>{
- for(const depth of [0,.04,.079]){assert.equal(zoomReveal(depth).cloud,0);assert.equal(zoomReveal(depth).surfaceOpacity,.4);assert.equal(zoomReveal(depth).nucleons,0)}
- let previous=0;for(let depth=.18;depth<.5;depth+=.01){const state=zoomReveal(depth);assert.ok(state.cloud>=previous);assert.ok(state.surfaceOpacity<=.4);previous=state.cloud}
- for(let depth=0;depth<=1;depth+=.01){const roundtrip=zoomReveal(zoomDepth(zoomDistance(depth))),expected=zoomReveal(depth);for(const key of ['cloud','detail','nucleus','nucleons','magnification','context','surfaceOpacity'])assert.ok(Math.abs(roundtrip[key]-expected[key])<1e-12);if(![.08,.27,.65,.82].some(edge=>Math.abs(depth-edge)<1e-12))assert.equal(roundtrip.stage,expected.stage)}
+ for(const depth of [0,.1,.25,.349]){assert.equal(zoomReveal(depth).cloud,0);assert.equal(zoomReveal(depth).surfaceOpacity,.4);assert.equal(zoomReveal(depth).nucleons,0)}
+ let previous=0;for(let depth=.35;depth<.7;depth+=.01){const state=zoomReveal(depth);assert.ok(state.cloud>=previous);assert.ok(state.surfaceOpacity<=.4);previous=state.cloud}
+ for(let depth=0;depth<=1;depth+=.01){const roundtrip=zoomReveal(zoomDepth(zoomDistance(depth))),expected=zoomReveal(depth);for(const key of ['cloud','detail','nucleus','nucleons','magnification','context','surfaceOpacity'])assert.ok(Math.abs(roundtrip[key]-expected[key])<1e-12);if(![.35,.7,.85].some(edge=>Math.abs(depth-edge)<1e-12))assert.equal(roundtrip.stage,expected.stage)}
 });
-test('five stages preserve the close nucleus before entering labelled educational magnification',()=>{
- const stages=[];for(let depth=0;depth<=1;depth+=.002){const state=zoomReveal(depth);if(stages.at(-1)!==state.stage)stages.push(state.stage);if(depth<.27)assert.equal(state.cloud,0);if(depth<.82){assert.equal(state.magnification,0);assert.equal(state.nucleons,0)}for(const value of Object.values(state).filter(v=>typeof v==='number'))assert.ok(Number.isFinite(value)&&value>=0&&value<=1)}
- assert.deepEqual(stages,['cloud','approach','density','nucleus','structure']);assert.deepEqual(stages.map(s=>ZOOM_STAGES[s].step),[1,2,3,4,5]);
- const approach=zoomReveal(.2),mid=zoomReveal(.46),close=zoomReveal(zoomDepth(ZOOM_DISTANCE.nucleus)),deep=zoomReveal(1);
- assert.ok(approach.surfaceOpacity>0&&approach.surfaceOpacity<.4);assert.equal(approach.cloud,0);
- assert.equal(mid.detail,1);assert.ok(mid.surfaceOpacity>0);
- assert.equal(close.nucleus,1);assert.equal(close.nucleons,0);assert.ok(close.cloud>0&&close.cloud<mid.cloud*.2);
+test('four exact ranges preserve a full probability viewing stage before nuclear focus',()=>{
+ const stages=[];for(let depth=0;depth<=1;depth+=.002){const state=zoomReveal(depth);if(stages.at(-1)!==state.stage)stages.push(state.stage);if(depth<.35)assert.equal(state.cloud,0);if(depth<.7)assert.equal(state.nucleus,0);if(depth<.85){assert.equal(state.magnification,0);assert.equal(state.nucleons,0)}for(const value of Object.values(state).filter(v=>typeof v==='number'))assert.ok(Number.isFinite(value)&&value>=0&&value<=1)}
+ assert.deepEqual(stages,['cloud','density','nucleus','structure']);assert.deepEqual(stages.map(s=>ZOOM_STAGES[s].step),[1,2,3,4]);
+ for(const [depth,stage] of [[.349,'cloud'],[.35,'density'],[.699,'density'],[.7,'nucleus'],[.849,'nucleus'],[.85,'structure']])assert.equal(zoomReveal(depth).stage,stage);
+ const mid=zoomReveal(.6),close=zoomReveal(zoomDepth(ZOOM_DISTANCE.nucleus)),deep=zoomReveal(1);
+ assert.equal(mid.detail,1);assert.equal(mid.cloud,1);assert.equal(mid.nucleus,0);assert.ok(mid.surfaceOpacity>0);
+ assert.ok(close.nucleus>.8);assert.equal(close.nucleons,0);assert.ok(close.cloud>0&&close.cloud<mid.cloud*.2);
  assert.equal(deep.nucleons,1);assert.equal(deep.magnification,1);assert.ok(deep.cloud>0);assert.match(ZOOM_STAGES.structure.helper,/not literal atomic scale/);
+});
+test('one continuous zoom gesture stops at probability density and idle frames never advance it',()=>{
+ const intent=createZoomIntent();let distance=zoomDistance(0),target=distance,now=0;
+ for(let i=0;i<400;i++){
+  target=zoomDistance(requestZoomIntent(intent,1,zoomDepth(distance),now));
+  distance=dampedZoomDistance(distance,target,.02);observeZoom(intent,zoomDepth(distance));now+=20;
+  assert.ok(zoomDepth(distance)<.7);assert.equal(zoomReveal(zoomDepth(distance)).nucleons,0);
+ }
+ for(let i=0;i<3000;i++){distance=dampedZoomDistance(distance,target,.02);observeZoom(intent,zoomDepth(distance));}
+ assert.ok(Math.abs(zoomDepth(distance)-.69)<1e-10);assert.equal(zoomReveal(zoomDepth(distance)).cloud,1);
+ // A fresh wheel gesture after observation grants access, without a timer advancing the camera.
+ assert.equal(requestZoomIntent(intent,.8,zoomDepth(distance),now+500),.8);
+});
+test('early deep controls and one slider or pinch gesture cannot skip the density view',()=>{
+ for(const input of ['slider','pinch','deep button']){
+  const intent=createZoomIntent();assert.equal(requestZoomIntent(intent,1,0,0,true),.69,input);
+  assert.equal(requestZoomIntent(intent,1,.4,30,input==='deep button'),.69,input);
+  for(let t=60;t<600;t+=20)assert.equal(requestZoomIntent(intent,1,.65,t,false),.69,input);
+  assert.equal(requestZoomIntent(intent,.82,.69,620,true),.82,input);
+  assert.equal(requestZoomIntent(intent,1,.82,650,true),1,input);
+  assert.equal(requestZoomIntent(intent,0,.95,700,true),0,input);
+  assert.equal(requestZoomIntent(intent,1,.1,1500,true),.69,input);
+ }
+});
+test('density braking is slower, frame-rate independent and settles without overshoot',()=>{
+ const normal=zoomDistance(.2),density=zoomDistance(.55),dt=1/60;
+ const normalFraction=(dampedZoomDistance(normal,normal-1,dt)-normal)/-1;
+ const densityFraction=(dampedZoomDistance(density,density-1,dt)-density)/-1;
+ assert.ok(densityFraction<normalFraction*.5);
+ for(const hz of [30,60,120]){let d=zoomDistance(0),target=ZOOM_DISTANCE.density;for(let i=0;i<hz*10;i++){const next=dampedZoomDistance(d,target,1/hz);assert.ok(next>=target&&next<=d);d=next;}assert.ok(Math.abs(zoomDepth(d)-.55)<1e-6);}
+ assert.ok(zoomDistance(.35)>=9-1e-10);assert.ok(zoomDistance(.7)>=6.5-1e-10);
 });
 test('all eleven clouds sit mainly inside their retained orbital boundaries with a faint short tail',()=>{
  for(const key of Object.keys(ATOMIC)){
