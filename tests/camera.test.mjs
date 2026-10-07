@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createCameraControl,takeCameraControl,releaseCameraControl,resetCameraControl,restartCameraTimeline,canGuideCamera,canFrameGeometry,geometryFramingDistance} from '../src/camera-model.mjs';
-import {CONFIG,duration} from '../src/model.mjs';
+import {CONFIG,duration,geometryStart,TIMING} from '../src/model.mjs';
 
 test('dragging yields guidance immediately, and releasing never restores it on a timer',()=>{
  const control=createCameraControl();assert.equal(canGuideCamera(control,true,false),true);
@@ -17,7 +17,7 @@ test('pause, play, replay and step changes preserve user ownership until explici
 });
 test('only the important final reveal may reframe a quiet manually inspected view in all modes',()=>{
  for(const config of Object.values(CONFIG)){
-  const control=createCameraControl(),start=10+config.count*3.3;
+  const control=createCameraControl(),start=geometryStart(config)+TIMING.revealHold;
   takeCameraControl(control,5,0);releaseCameraControl(control,100);
   for(const t of [2,8.5,10,start-.01,duration(config)])assert.equal(canFrameGeometry(control,true,t,config.count,5000),false);
   assert.equal(canFrameGeometry(control,true,start+1,config.count,5000),true);
