@@ -1,3 +1,6 @@
+// Consistent educational length scale: each successive s shell is larger.
+// These are illustrative display radii, not hard physical boundaries.
+export const S_DISPLAY_RADIUS=Object.freeze({'1s':1.35,'2s':2.15,'3s':3.05});
 // Boundary diagrams, with exact angular orientation and hydrogenic radial nodes.
 // Display scales are adjusted for legibility; colours encode wavefunction sign.
 export const ATOMIC = {

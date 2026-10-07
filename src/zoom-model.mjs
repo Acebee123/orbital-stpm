@@ -1,4 +1,4 @@
-import {ATOMIC,surfaceSlots} from './atomic-model.mjs';
+import {ATOMIC,surfaceSlots,S_DISPLAY_RADIUS} from './atomic-model.mjs';
 const clamp=x=>Math.min(1,Math.max(0,x));
 const smooth=x=>{x=clamp(x);return x*x*(3-2*x)};
 // Reserve a wide, shallow camera range for observing the whole distribution.
@@ -74,7 +74,7 @@ const envelopes=new Map(Object.keys(ATOMIC).map(key=>[key,surfaceSlots(key)]));
 // This display envelope is qualitative; it is not a hard physical boundary.
 export function orbitalEnvelope(key,p){
  const radius=Math.hypot(...p),config=ATOMIC[key];
- if(config.family==='s')return radius/2.337;
+ if(config.family==='s')return radius/S_DISPLAY_RADIUS[key];
  let metric=Infinity;
  for(const slot of envelopes.get(key)){
   const along=p.reduce((sum,v,k)=>sum+v*slot.dir[k],0);if(along<=0)continue;
@@ -92,7 +92,7 @@ export const envelopeWeight=metric=>Math.exp(-((Math.max(0,metric-.88)/.14)**2))
 // Stored samples never follow trajectories: only their soft intensity pulses.
 export function probabilitySamples(key,count=4400){
  const c=ATOMIC[key],max=c.family==='s'?[0,4.5,9,16][c.n]:c.family==='p'?9:18;
- const display=c.family==='s'?2.337/[0,3.5,7,12][c.n]:c.family==='p'?.3:.2;
+ const display=c.family==='s'?S_DISPLAY_RADIUS[key]/[0,3.5,7,12][c.n]:c.family==='p'?.3:.2;
  const steps=1024,cdf=new Float64Array(steps+1);let total=0;
  for(let i=1;i<=steps;i++){const r=max*(i-.5)/steps;total+=r*r*radialAmplitude(key,r)**2;cdf[i]=total}
  for(let i=0;i<=steps;i++)cdf[i]/=total;

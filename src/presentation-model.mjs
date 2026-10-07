@@ -1,5 +1,9 @@
 import {TIMING,smooth} from './model.mjs';
-export const ATOMIC_PARTICLE_COUNT=26000;
+export const ATOMIC_PARTICLE_COUNT=56000;
+// s selections replace the prior cloud. Fade only the selected distribution in;
+// never superimpose different s orbitals, including during rapid selections.
+export const atomicCloudVisibility=(key,index,active,fade)=>
+ key.endsWith('s')?(index===active?fade:0):(index===active?fade:1-fade);
 export const ATOMIC_ROTATION=[-Math.PI/2,0,0];
 export const atomicDisplayPoint=([x,y,z])=>[x,z,-y];
 export const HYBRID_DURATION=16;
