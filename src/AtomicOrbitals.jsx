@@ -7,13 +7,13 @@ import {zoomReveal} from './zoom-model.mjs';
 import {ProbabilityCloud} from './ProbabilityCloud';
 const amber='#d9b77c',teal='#79b8aa',xaxis=new THREE.Vector3(1,0,0);
 const vertex=`varying vec3 n;varying vec3 view;varying vec3 local;void main(){local=position;vec4 p=modelViewMatrix*vec4(position,1.);n=normalize(normalMatrix*normal);view=-p.xyz;gl_Position=projectionMatrix*p;}`;
-const fragment=`uniform vec3 phase;uniform float opacity;uniform float cutaway;uniform float highlight;uniform float time;varying vec3 n;varying vec3 view;varying vec3 local;void main(){if(cutaway>.5&&local.x>0.&&local.z>0.)discard;float rim=pow(1.-abs(dot(normalize(n),normalize(view))),1.8);float lit=max(dot(normalize(n),normalize(vec3(.5,.8,.7))),0.);float wave=.97+.03*sin(length(local)*5.-time*.7);gl_FragColor=vec4(phase*(.67+.3*lit+.46*rim+highlight*.3),opacity*(.28+.72*rim)*wave);
+const fragment=`uniform vec3 phase;uniform float opacity;uniform float cutaway;uniform float highlight;uniform float time;varying vec3 n;varying vec3 view;varying vec3 local;void main(){if(cutaway>.5&&local.x>0.&&local.z>0.)discard;float rim=pow(1.-abs(dot(normalize(n),normalize(view))),1.8);float lit=max(dot(normalize(n),normalize(vec3(.5,.8,.7))),0.);float wave=.86+.14*sin(length(local)*3.-time*.95);gl_FragColor=vec4(phase*(.67+.3*lit+.46*rim+highlight*.3),opacity*(.28+.72*rim)*wave);
 #include <tonemapping_fragment>
 #include <colorspace_fragment>
 }`;
 function makeSurface(){const geometry=new THREE.SphereGeometry(1,44,28),base=geometry.attributes.position.array.slice();geometry.attributes.position.array.fill(0);return {geometry,base,from:null,to:null,color:new THREE.Color(amber),startColor:new THREE.Color(amber),targetColor:new THREE.Color(amber)}}
 export function AtomicOrbitals({orbital,labels,axes,cutaway,selected,onSelect,labelHost,zoom,motion}){
- const meshes=useRef([]),torus=useRef(),transition=useRef(2),group=useRef(),motionTime=useRef(0);
+ const meshes=useRef([]),torus=useRef(),transition=useRef(2),group=useRef(),breathing=useRef(),motionTime=useRef(0);
  const surfaces=useMemo(()=>Array.from({length:4},makeSurface),[]);
  const torusGeometry=useMemo(()=>new THREE.TorusGeometry(.88,.27,28,72),[]);
  const torusBase=useMemo(()=>torusGeometry.attributes.position.array.slice(),[torusGeometry]);
@@ -39,6 +39,7 @@ export function AtomicOrbitals({orbital,labels,axes,cutaway,selected,onSelect,la
  useFrame((_,delta)=>{
   if(motion)motionTime.current+=delta;
   const reveal=zoomReveal(zoom.current.progress);
+  breathing.current.scale.setScalar(1+.04*Math.sin(motionTime.current*.95)*reveal.context);
   transition.current=Math.min(1,transition.current+delta/1.25);const t=transition.current,tween=t*t*t*(t*(t*6-15)+10);
   surfaces.forEach((s,i)=>{const a=s.geometry.attributes.position;if(s.to&&t<1){for(let j=0;j<a.array.length;j++)a.array[j]=THREE.MathUtils.lerp(s.from[j],s.to[j],tween);a.needsUpdate=true;s.geometry.computeVertexNormals()}else if(s.to&&s.final!==s.to){a.array.set(s.to);a.needsUpdate=true;s.geometry.computeVertexNormals();s.final=s.to}
    s.color.copy(s.startColor).lerp(s.targetColor,tween);const mesh=meshes.current[i],m=mesh?.material;if(m){mesh.visible=reveal.context>.01;m.uniforms.phase.value.copy(s.color);m.uniforms.cutaway.value=cutaway&&ATOMIC[orbital].family==='s'&&orbital!=='1s'?1:0;m.uniforms.highlight.value=selected===i?1:0;m.uniforms.opacity.value=reveal.surfaceOpacity;m.uniforms.time.value=motionTime.current}
@@ -48,9 +49,11 @@ export function AtomicOrbitals({orbital,labels,axes,cutaway,selected,onSelect,la
  const material=(color=amber)=>({phase:{value:new THREE.Color(color)},opacity:{value:.4},cutaway:{value:0},highlight:{value:0},time:{value:0}});
  const pick=i=>e=>{e.stopPropagation();onSelect(selected===i?null:i)};
  return <group ref={group}>
+  <group ref={breathing}>
   <ProbabilityCloud orbital={orbital} zoom={zoom} motion={motion} cutaway={cutaway}/>
   {surfaces.map((s,i)=><mesh key={i} geometry={s.geometry} ref={el=>meshes.current[i]=el} onClick={pick(i)} onPointerOver={()=>document.body.style.cursor='pointer'} onPointerOut={()=>document.body.style.cursor='auto'}><shaderMaterial uniforms={material()} vertexShader={vertex} fragmentShader={fragment} transparent depthWrite={false} side={THREE.DoubleSide}/></mesh>)}
   <mesh ref={torus} geometry={torusGeometry} onClick={pick(4)}><shaderMaterial uniforms={material(teal)} vertexShader={vertex} fragmentShader={fragment} transparent depthWrite={false} side={THREE.DoubleSide}/></mesh>
+  </group>
   {labels&&<Html portal={labelHost} position={[0,2.95,0]} center zIndexRange={[5,0]}><span className="orbital-label">{ATOMIC[orbital].label}</span></Html>}
   {axes&&[[1,0,0],[0,1,0],[0,0,1]].map((d,i)=><group key={i}>
    <Line points={[d.map(v=>v*-3.15),d.map(v=>v*3.15)]} color={['#ad8b72','#87aaa0','#8e9daf'][i]} lineWidth={.8} transparent opacity={.5}/>

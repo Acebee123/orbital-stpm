@@ -5,13 +5,27 @@ export const CONFIG = {
 };
 export const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
 export const smooth=x=>{x=clamp(x);return x*x*(3-2*x)};
-export const duration=c=>10+c.count*3.3+4;
-export const bondStart=i=>10+i*3.3;
-export const approach=t=>smooth(t/2.15);
-export const hydrogenDistance=t=>7-4.2*approach(t);
-export const CONTACT_OFFSET=1.8243;
-export function stageAt(t,c){return t<2?0:t<8.5?1:t<10+c.count*3.3?2:3}
-export function formedAt(t,c){return c.directions.filter((_,i)=>t>=bondStart(i)+2.8).length}
+// Every event has an observable hold, shared by geometry, UI, camera and sound.
+export const TIMING={atomicHold:3,gatherEnd:5.5,morphStart:6,morphEnd:12,bondStart:14,bondInterval:7.3,approachStart:.65,contact:3.8,contactHold:.4,overlapEnd:5.05,bondAppear:5.4,bondComplete:6.35,revealHold:.8,revealMove:3.6,finalHold:2.6};
+export const geometryStart=c=>TIMING.bondStart+c.count*TIMING.bondInterval;
+export const duration=c=>geometryStart(c)+TIMING.revealHold+TIMING.revealMove+TIMING.finalHold;
+export const bondStart=i=>TIMING.bondStart+i*TIMING.bondInterval;
+export const CONTACT_OFFSET=TIMING.contact;
+export const ease=x=>{x=clamp(x);return x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2};
+export const approach=t=>ease((t-TIMING.approachStart)/(TIMING.contact-TIMING.approachStart));
+export function hydrogenDistance(t){
+ if(t<=CONTACT_OFFSET)return 9.2-(9.2-3.06)*approach(t);
+ return 3.06-.26*smooth((t-CONTACT_OFFSET-TIMING.contactHold)/(TIMING.overlapEnd-CONTACT_OFFSET-TIMING.contactHold));
+}
+export const hybridMotion=t=>({gather:smooth((t-TIMING.atomicHold)/(TIMING.gatherEnd-TIMING.atomicHold)),morph:smooth((t-TIMING.morphStart)/(TIMING.morphEnd-TIMING.morphStart))});
+export const geometryMotion=(t,c)=>smooth((t-geometryStart(c)-TIMING.revealHold)/TIMING.revealMove);
+export function bondMotion(t){
+ const contact=smooth((t-CONTACT_OFFSET)/.65),bond=smooth((t-TIMING.bondAppear)/(TIMING.bondComplete-TIMING.bondAppear));
+ const pulse=clamp((t-CONTACT_OFFSET)/1.1),compression=Math.sin(Math.PI*clamp((t-CONTACT_OFFSET)/.9));
+ return {contact,bond,pulse,compression,density:contact*(.68+.32*bond)};
+}
+export function stageAt(t,c){return t<TIMING.atomicHold?0:t<TIMING.bondStart?1:t<geometryStart(c)?2:3}
+export function formedAt(t,c){return c.directions.filter((_,i)=>t>=bondStart(i)+TIMING.bondComplete).length}
 export const STAGES=[
  {title:'Meet the atomic orbitals',short:'Atomic orbitals',text:'A spherical s orbital and directional p orbitals begin as distinct probability distributions.'},
  {title:'From atomic to equivalent',short:'Hybridisation',text:'The s and p orbitals mix into equivalent hybrid orbitals, oriented to minimise electron-pair repulsion.'},

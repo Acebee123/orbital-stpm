@@ -1,3 +1,4 @@
+import {TIMING,geometryStart} from './model.mjs';
 // Camera ownership is independent of the formation clock.
 export const createCameraControl=()=>({userOwned:false,interacting:false,lastInput:-Infinity,lastFormationInput:-Infinity});
 export function takeCameraControl(control,time,now){
@@ -8,8 +9,8 @@ export function resetCameraControl(control){Object.assign(control,createCameraCo
 export function restartCameraTimeline(control){control.lastFormationInput=-Infinity;}
 export const canGuideCamera=(control,guided,reset)=>!control.userOwned&&!control.interacting&&(guided||reset);
 export function canFrameGeometry(control,playing,time,count,now){
- const revealStart=10+count*3.3;
- return control.userOwned&&!control.interacting&&playing&&time>=revealStart&&time<revealStart+3
+ const revealStart=geometryStart({count})+TIMING.revealHold;
+ return control.userOwned&&!control.interacting&&playing&&time>=revealStart&&time<revealStart+TIMING.revealMove
   &&control.lastFormationInput<revealStart&&now-control.lastInput>1000;
 }
 // A needed final pullback keeps both the user's orbit direction and target.

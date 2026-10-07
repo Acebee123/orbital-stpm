@@ -7,7 +7,7 @@ export function MicroscopicNucleus({zoom,motion,labels,labelHost,onSelect}){
  useFrame((_,delta)=>{
   if(motion)motionTime.current+=delta;
   const state=zoomReveal(zoom.current.progress);group.current.scale.setScalar(1+.06*state.magnification);shell.current.scale.setScalar(.5+.5*state.nucleus);shell.current.material.opacity=(1-state.nucleons)*.9;shell.current.visible=shell.current.material.opacity>.005;
-  nucleons.current.forEach((mesh,i)=>{if(!mesh)return;mesh.visible=state.nucleons>.005;mesh.material.opacity=state.nucleons;const p=NUCLEONS[i].position;mesh.position.set(...p);mesh.position.multiplyScalar(1+.005*Math.sin(motionTime.current*.85+i*1.7));});
+  nucleons.current.forEach((mesh,i)=>{if(!mesh)return;mesh.visible=state.nucleons>.005;mesh.material.opacity=state.nucleons;const p=NUCLEONS[i].position;mesh.position.set(...p);mesh.position.multiplyScalar(1+.014*Math.sin(motionTime.current*1.15+i*1.7));});
   for(const label of [protonLabel,neutronLabel])if(label.current){label.current.style.opacity=state.nucleons>.75?'1':'0';label.current.style.visibility=state.nucleons>.75?'visible':'hidden'}
  });
  return <group ref={group}>

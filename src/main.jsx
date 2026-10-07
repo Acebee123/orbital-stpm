@@ -8,7 +8,7 @@ import {RenderPass} from 'three/addons/postprocessing/RenderPass.js';
 import {UnrealBloomPass} from 'three/addons/postprocessing/UnrealBloomPass.js';
 import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 import {Play,Pause,RotateCcw,SkipForward,Volume2,VolumeX,Tags,Focus,ArrowUpRight,X,MoveUpRight,MousePointer2,Info,ChevronDown,Check,Atom} from 'lucide-react';
-import {CONFIG,clamp,smooth,duration,bondStart,hydrogenDistance,CONTACT_OFFSET,stageAt,formedAt,STAGES} from './model.mjs';
+import {CONFIG,clamp,smooth,duration,bondStart,hydrogenDistance,CONTACT_OFFSET,stageAt,formedAt,STAGES,TIMING,geometryStart,hybridMotion,geometryMotion,bondMotion} from './model.mjs';
 import {audio} from './audio';
 import {createCameraControl,takeCameraControl,releaseCameraControl,resetCameraControl,restartCameraTimeline,canGuideCamera,canFrameGeometry,geometryFramingDistance} from './camera-model.mjs';
 import './style.css';
@@ -53,19 +53,21 @@ function Orbital({index,config,clock,selected,onSelect,labels,labelHost}){
  const final=axisQuaternion(config.directions[index]);
  const sourcePosition=config.count===4?[[-1.65,.4,0],[1.65,.4,0],[0,1.65,0],[0,-1.2,1]][index]:config.count===3?[[-1.65,.1,0],[1.5,.3,0],[0,1.6,0]][index]:[[-1.55,.1,0],[1.55,.1,0]][index];
  useFrame(({clock:real})=>{
-   const t=clock.current.time, morph=smooth((t-2)/6.5),settle=smooth((t-1.7)/2.4);
-   group.current.position.copy(V(sourcePosition).multiplyScalar(1-settle));
-   const float=(1-settle)*.075*Math.sin(real.elapsedTime*.8+index*2);
+   const t=clock.current.time,{morph,gather:settle}=hybridMotion(t),event=bondMotion(t-bondStart(index));
+   group.current.position.copy(V(sourcePosition).multiplyScalar(1.28*(1-settle)));
+   const float=(1-settle)*.13*Math.sin(real.elapsedTime*.65+index*2);
    group.current.position.y+=float;
    group.current.quaternion.copy(initial).slerp(final,morph);
+   group.current.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1),.58*Math.sin(Math.PI*morph)));
+   const breathing=1+.045*Math.sin(real.elapsedTime*.95+index*.6)*(1-smooth((t-bondStart(index)-TIMING.approachStart)/1.2));group.current.scale.setScalar(breathing);
    if(radialCore.current){radialCore.current.scale.setScalar(Math.max(.0001,1-morph));radialCore.current.material.uniforms.densityOpacity.value=.4*(1-morph);}
    meshes.forEach((m,j)=>{
      const a=m.geometry.attributes.position;
-     const stretch=1+.025*Math.sin((t-bondStart(index))*3)*smooth((t-bondStart(index)-CONTACT_OFFSET)/.35)*(1-smooth((t-bondStart(index)-CONTACT_OFFSET-.5)/.5));
+     const stretch=1+.075*event.compression;
      if(m.lastMorph!==morph||m.lastStretch!==stretch){for(let i=0;i<a.array.length;i++)a.array[i]=THREE.MathUtils.lerp(m.source[i],m.target[i],morph)*(i%3===0?stretch:1);a.needsUpdate=true;m.geometry.computeVertexNormals();m.lastMorph=morph;m.lastStretch=stretch;}
      const mat=(j?negative:positive).current.material;
-     mat.uniforms.densityOpacity.value=j&&index===0?.4*morph:.48;
-     mat.uniforms.glow.value=selected===index?.95:.1+.22*smooth((t-bondStart(index)-CONTACT_OFFSET)/.7);
+     mat.uniforms.densityOpacity.value=(j&&index===0?.4*morph:.48)*(1+.12*Math.sin(real.elapsedTime*.95+index*.6));
+     mat.uniforms.glow.value=selected===index?.95:.16+.52*event.contact;
    });
  });
  const click=e=>{e.stopPropagation();onSelect(selected===index?null:index)};
@@ -74,7 +76,7 @@ function Orbital({index,config,clock,selected,onSelect,labels,labelHost}){
    {meshes.map((m,j)=><mesh key={j} ref={j?negative:positive} geometry={m.geometry} onClick={click} onPointerOver={()=>document.body.style.cursor='pointer'} onPointerOut={()=>document.body.style.cursor='auto'}>
      <DensityMaterial color={j?TEAL:AMBER}/>
    </mesh>)}
-   {labels&&<Html portal={labelHost} position={[index===0&&clock.current.time<2?0:1.7,.5,0]} center distanceFactor={11} zIndexRange={[3,0]}><span className={`orbital-label ${selected===index?'highlighted':''}`}>{clock.current.time<2?['2s','2pₓ','2pᵧ','2p𝓏'][index]:clock.current.time<8.5?`mixing · ${index+1}`:`${config.label} · ${index+1}`}</span></Html>}
+   {labels&&<Html portal={labelHost} position={[index===0&&clock.current.time<TIMING.atomicHold?0:1.7,.5,0]} center distanceFactor={11} zIndexRange={[3,0]}><span className={`orbital-label ${selected===index?'highlighted':''}`}>{clock.current.time<TIMING.atomicHold?['2s','2pₓ','2pᵧ','2p𝓏'][index]:clock.current.time<TIMING.morphEnd?`mixing · ${index+1}`:`${config.label} · ${index+1}`}</span></Html>}
  </group>
 }
 
@@ -88,15 +90,16 @@ function Partner({index,config,clock,labels,labelHost}){
  const particleData=React.useMemo(()=>{
    const a=new Float32Array(30*3);for(let i=0;i<30;i++){const k=i*2.39996,y=1-2*(i+.5)/30,r=Math.sqrt(1-y*y);a.set([Math.cos(k)*r,y,Math.sin(k)*r],i*3)}return a;
  },[]);
- useFrame(()=>{
-   const local=clock.current.time-bondStart(index),distance=hydrogenDistance(local),contact=smooth((local-CONTACT_OFFSET)/.5),bond=smooth((local-2.1)/.7);
+ useFrame(({clock:real})=>{
+   const local=clock.current.time-bondStart(index),distance=hydrogenDistance(local),{contact,bond,pulse:p,compression,density:charge}=bondMotion(local);
    group.current.position.copy(direction).multiplyScalar(distance);
    shell.current.material.uniforms.densityOpacity.value=.3-.1*bond;
-   shell.current.scale.setScalar(1+.055*Math.sin(clock.current.time*1.1+index)*(1-bond));
+   const breath=1+.065*Math.sin(real.elapsedTime*.85+index)*(1-smooth((local-TIMING.approachStart)/1.2));
+   shell.current.quaternion.copy(q);shell.current.scale.set(breath*(1-.11*compression),breath*(1+.055*compression),breath*(1+.055*compression));
    bridge.current.visible=bond>0;bridge.current.scale.set(1,bond,bond);bridge.current.material.opacity=.85*bond;
-   density.current.visible=contact>0;density.current.material.opacity=.12*contact;density.current.scale.set(1.05+.04*Math.sin(local*2)*(1-bond),.32,.32);
-   const p=clamp((local-CONTACT_OFFSET)/.8);pulse.current.visible=p>0&&p<1;pulse.current.scale.setScalar(.2+p*.9);pulse.current.material.opacity=.3*(1-p);
-   burst.current.visible=p>0&&p<1;burst.current.scale.setScalar(.08+p*.6);burst.current.material.opacity=.65*(1-p);
+   density.current.visible=contact>0;density.current.material.opacity=charge*(.3+.045*Math.sin(local*2.2));density.current.scale.set(1.1+.08*contact,.39+.07*charge,.39+.07*charge);
+   pulse.current.visible=p>0&&p<1;pulse.current.scale.setScalar(.35+smooth(p)*1.05);pulse.current.material.opacity=.52*Math.sin(Math.PI*p);
+   burst.current.visible=p>0&&p<1;burst.current.scale.setScalar(.12+smooth(p)*.78);burst.current.material.opacity=.78*Math.sin(Math.PI*p);
  });
  return <>
   <group ref={group}>
@@ -108,8 +111,8 @@ function Partner({index,config,clock,labels,labelHost}){
    <mesh ref={bridge} position={[1.4,0,0]} rotation={[0,0,Math.PI/2]}><cylinderGeometry args={[.065,.065,2.8,16]}/><meshStandardMaterial color="#ddc69e" emissive="#d3ad69" emissiveIntensity={.2} transparent/></mesh>
    <mesh ref={density} position={[1.7,0,0]} scale={[1.05,.36,.36]}><sphereGeometry args={[1,40,30]}/><meshBasicMaterial color="#f4d29b" transparent opacity={.1} depthWrite={false}/></mesh>
    <group position={[2.3,0,0]}>
-    <mesh ref={pulse} rotation={[0,Math.PI/2,0]}><ringGeometry args={[.72,.74,64]}/><meshBasicMaterial color="#ead6b0" transparent depthWrite={false} side={THREE.DoubleSide}/></mesh>
-    <points ref={burst}><bufferGeometry><bufferAttribute attach="attributes-position" args={[particleData,3]}/></bufferGeometry><pointsMaterial size={.027} color="#e7cea1" transparent depthWrite={false} sizeAttenuation/></points>
+    <mesh ref={pulse} rotation={[0,Math.PI/2,0]}><ringGeometry args={[.70,.75,64]}/><meshBasicMaterial color="#ead6b0" transparent depthWrite={false} side={THREE.DoubleSide}/></mesh>
+    <points ref={burst}><bufferGeometry><bufferAttribute attach="attributes-position" args={[particleData,3]}/></bufferGeometry><pointsMaterial size={.038} color="#e7cea1" transparent depthWrite={false} sizeAttenuation/></points>
    </group>
   </group>
  </>
@@ -156,11 +159,11 @@ function Studio({config,clock,selected,onSelect,labels,stage,resetKey,guided,onI
  useFrame(({clock:real},delta)=>{
   const c=clock.current,t=c.time;timer.current+=delta;
   if(c.playing&&!atomic){const prev=t;c.time=Math.min(duration(config),t+delta*c.speed);
-    config.directions.forEach((_,i)=>{for(const [offset,sound] of [[.14,'whoosh'],[CONTACT_OFFSET,'impact'],[CONTACT_OFFSET+.13,'energy']]){const at=bondStart(i)+offset;if(prev<at&&c.time>=at){audio.sound(sound);if(sound==='impact')c.impulse=1}}});
+    config.directions.forEach((_,i)=>{for(const [offset,sound] of [[TIMING.approachStart+.45,'whoosh'],[CONTACT_OFFSET,'impact'],[CONTACT_OFFSET+.4,'energy']]){const at=bondStart(i)+offset;if(prev<at&&c.time>=at){audio.sound(sound,c.speed);if(sound==='impact')c.impulse=1}}});
     if(c.time===duration(config))c.playing=false;
   }
   ambience.current.rotation.y=real.elapsedTime*.003;
-  c.impulse=Math.max(0,(c.impulse||0)-delta*5);
+  c.impulse=Math.max(0,(c.impulse||0)-delta*3.6);
   if(cameraState.current.key!==resetKey){cameraState.current.key=resetKey;cameraState.current.reset=2;cameraState.current.zoomTarget=null;cameraState.current.zoomSerial=zoom?.current.serial??0;if(atomic)zoom.current.intent=createZoomIntent();}
   const reset=cameraState.current.reset>0;cameraState.current.reset=Math.max(0,(cameraState.current.reset||0)-delta);
   if(atomic){
@@ -171,21 +174,22 @@ function Studio({config,clock,selected,onSelect,labels,stage,resetKey,guided,onI
   }
   const follow=atomic?(guided||(reset&&cameraState.current.zoomTarget===null)):canGuideCamera(cameraControl.current,guided,reset);
   if(follow){
-    const morph=smooth((c.time-2)/6),reveal=smooth((c.time-(10+config.count*3.3))/3);
+    const morph=hybridMotion(c.time).morph,reveal=geometryMotion(c.time,config);
     const finalView=config.key==='sp3'?[12,5,4]:config.key==='sp2'?[7,5,12]:[4,5,13];
-    let desired=new THREE.Vector3(7.9-morph*.9,4.6-morph*1.1,11.5-morph*2.9).lerp(V(finalView),reveal);
-    if(c.time>10&&reveal===0){const index=Math.min(config.count-1,Math.floor((c.time-10)/3.3)),d=V(config.directions[index]);desired.addScaledVector(d,.5);}
+    let desired=new THREE.Vector3(9.5-morph*2.5,5.2-morph*1.7,13.8-morph*5.2).lerp(V(finalView),reveal);
+    if(c.time>TIMING.bondStart&&reveal===0){const index=Math.min(config.count-1,Math.floor((c.time-TIMING.bondStart)/TIMING.bondInterval)),d=V(config.directions[index]);desired.addScaledVector(d,.5);}
     if(reset)desired.copy(!atomic&&stage===3?V(finalView):new THREE.Vector3(8.5,4.3,12));
-    desired.x+=c.impulse*.025;desired.y+=c.impulse*.018;
+    desired.x+=c.impulse*.075;desired.y+=c.impulse*.052;
     camera.position.lerp(desired,1-Math.exp(-delta*2.1));
     orbit.current.target.lerp(new THREE.Vector3(atomic?0:camera.aspect<1.1?0:-.55,atomic?.5:.25,0),1-Math.exp(-delta*2.5));orbit.current.update();
   }
+  if(!atomic){const reveal=geometryMotion(c.time,config);world.current.rotation.set(.10*reveal,(config.key==='sp'?.62:config.key==='sp2'?.78:.9)*reveal,0);}
   if(!atomic&&canFrameGeometry(cameraControl.current,c.playing,c.time,config.count,performance.now())){
     const target=orbit.current.target,direction=camera.position.clone().sub(target).normalize(),distance=camera.position.distanceTo(target),next=geometryFramingDistance(distance,camera.aspect<1.1?13:10.5,delta);
     if(next>distance){camera.position.copy(target).addScaledVector(direction,next);orbit.current.update();}
   }
   if(!atomic&&cameraControl.current.userOwned&&c.impulse>0){
-    const canvas=gl.domElement,ratio=gl.getPixelRatio();camera.setViewOffset(canvas.width,canvas.height,c.impulse*.8*ratio,c.impulse*.6*ratio,canvas.width,canvas.height);cameraState.current.viewImpulse=true;
+    const canvas=gl.domElement,ratio=gl.getPixelRatio();camera.setViewOffset(canvas.width,canvas.height,c.impulse*2.1*ratio,c.impulse*1.4*ratio,canvas.width,canvas.height);cameraState.current.viewImpulse=true;
   }else if(cameraState.current.viewImpulse){camera.clearViewOffset();cameraState.current.viewImpulse=false;}
  });
  return <>
@@ -231,7 +235,7 @@ function App(){
  const zoomCaption=zoomStage==='cloud'?{...zoomLesson,kicker:orbitalConfig.nodes,title:orbitalConfig.title,description:orbitalConfig.description}:zoomLesson;
  const requestZoom=(value,fresh=true)=>{zoom.current.request=requestZoomIntent(zoom.current.intent,value,zoom.current.progress,performance.now(),fresh);zoom.current.serial++;};
  useEffect(()=>{const id=setInterval(()=>setZoomProgress(zoom.current.progress),125);return()=>clearInterval(id)},[]);
- const navigate=tab=>{audio.stop();clock.current.playing=false;setPlaying(false);setGuided(false);setSection(tab);setSelected(null);if(tab==='atomic'){requestZoom(0);zoom.current.progress=0;setZoomProgress(0)}else if(tab==='bond'){clock.current.time=10;setTime(10)}else if(tab==='hybrid'&&section==='atomic'){clock.current.time=0;setTime(0)}if(tab==='atomic'||section==='atomic'){resetCameraControl(cameraControl.current);setReset(r=>r+1)}};
+ const navigate=tab=>{audio.stop();clock.current.playing=false;setPlaying(false);setGuided(false);setSection(tab);setSelected(null);if(tab==='atomic'){requestZoom(0);zoom.current.progress=0;setZoomProgress(0)}else if(tab==='bond'){clock.current.time=TIMING.bondStart;setTime(TIMING.bondStart)}else if(tab==='hybrid'&&section==='atomic'){clock.current.time=0;setTime(0)}if(tab==='atomic'||section==='atomic'){resetCameraControl(cameraControl.current);setReset(r=>r+1)}};
  const chooseOrbital=key=>{setOrbital(key);setAtomicSelected(null);if(zoom.current.progress>=.7)requestZoom(zoomDepth(ZOOM_DISTANCE.density))};
  const [mode,setMode]=useState('sp3'),[playing,setPlaying]=useState(false),[time,setTime]=useState(0),[labels,setLabels]=useState(true),[sound,setSound]=useState(false),[speed,setSpeed]=useState(1),[selected,setSelected]=useState(null),[info,setInfo]=useState(false),[resetKey,setReset]=useState(0),[guided,setGuided]=useState(false);
  const labelHost=useRef(); const clock=useRef({time:0,playing:false,speed:1,impulse:0});const config=CONFIG[mode],stage=stageAt(time,config),formed=formedAt(time,config),total=duration(config);
@@ -240,7 +244,7 @@ function App(){
  const choose=key=>{setSection('hybrid');audio.stop();clock.current.time=0;clock.current.playing=false;setMode(key);setTime(0);setPlaying(false);setSelected(null);setGuided(false);restartCameraTimeline(cameraControl.current)};
  const play=async()=>{await audio.unlock();if(clock.current.time>=total){clock.current.time=0;setTime(0);restartCameraTimeline(cameraControl.current)}clock.current.playing=!clock.current.playing;setPlaying(clock.current.playing);setGuided(clock.current.playing&&!cameraControl.current.userOwned);if(!clock.current.playing)audio.stop()};
  const replay=async()=>{await audio.unlock();audio.stop();clock.current.time=0;clock.current.playing=true;setTime(0);setPlaying(true);setGuided(!cameraControl.current.userOwned);setSelected(null);restartCameraTimeline(cameraControl.current)};
- const next=()=>{audio.stop();const milestones=[2,8.5,10,...config.directions.map((_,i)=>bondStart(i)+2.9),total];const target=milestones.find(x=>x>clock.current.time+.15)??total;clock.current.time=target;clock.current.playing=false;setTime(target);setPlaying(false);setGuided(false)};
+ const next=()=>{audio.stop();const milestones=[TIMING.atomicHold,TIMING.morphStart,TIMING.morphEnd,TIMING.bondStart,...config.directions.flatMap((_,i)=>[bondStart(i)+CONTACT_OFFSET+.25,bondStart(i)+TIMING.bondComplete+.15]),geometryStart(config),total];const target=milestones.find(x=>x>clock.current.time+.15)??total;clock.current.time=target;clock.current.playing=false;setTime(target);setPlaying(false);setGuided(false)};
  const toggleSound=async()=>{await audio.unlock();audio.enabled=!sound;setSound(!sound);if(sound)audio.stop()};
  useEffect(()=>{const handler=e=>{if(e.key==='Escape'){setInfo(false);return}if(['INPUT','SELECT','BUTTON'].includes(e.target.tagName)||info||atomic)return;if(e.code==='Space'){e.preventDefault();play()}if(e.key.toLowerCase()==='r')replay();if(e.key==='ArrowRight')next()};window.addEventListener('keydown',handler);return()=>window.removeEventListener('keydown',handler)},[info,total,playing,atomic]);
  useEffect(()=>{if(!info)return;const before=document.activeElement;const trap=e=>{if(e.key!=='Tab')return;const els=Array.from(document.querySelector('.info-dialog').querySelectorAll('button,a[href]'));if(e.shiftKey&&document.activeElement===els[0]){e.preventDefault();els.at(-1).focus()}else if(!e.shiftKey&&document.activeElement===els.at(-1)){e.preventDefault();els[0].focus()}};document.addEventListener('keydown',trap);return()=>{document.removeEventListener('keydown',trap);before?.focus()}},[info]);
@@ -263,7 +267,7 @@ function App(){
   <section className="lesson-caption" aria-live="polite"><div className="step-number">0{stage+1}<span>/ 04</span></div><div><div className="caption-kicker">{stage===2?`FORMING ${config.atom}–H · ${formed} / ${config.count} BONDS`:'THE PROCESS'}</div><h2>{STAGES[stage].title}</h2><p>{STAGES[stage].text}</p></div></section>
   <aside className="composition"><span className="composition-heading">{stage===3?'THE FINAL STRUCTURE':'ORBITAL COMPOSITION'}</span><div className="orbital-equation">{stage===3?<>{config.formula}<span>{config.geometry}</span></>:<>{config.input.split(' + ').map((o,i)=><React.Fragment key={i}>{i>0&&<span className="operator">+</span>}<span className={`equation-orbital ${o==='p'?'p-orbital':''}`}>{o}</span></React.Fragment>)}<span className="operator arrow">→</span><strong>{config.label}</strong></>}</div><div className="composition-sub">{stage===3?<><span className="tiny-dot"/>{config.count} σ bonds · {config.angle}</>:<><span className="phase-key amber"/> s character {config.s}%<span className="phase-key teal"/> p character {100-config.s}%</>}</div></aside>
   <div className="transport-area"><div className="transport"><button className="play-button" onClick={play} aria-label={playing?'Pause animation':'Play animation'}>{playing?<Pause size={18} fill="currentColor"/>:<Play size={18} fill="currentColor"/>}</button><div className="play-copy"><span>{playing?'Pause formation':time>=total?'Play again':'Play formation'}</span><small>{String(Math.floor(time)).padStart(2,'0')} / {Math.round(total)}s</small></div><button className="icon-button" onClick={replay} title="Replay (R)" aria-label="Replay"><RotateCcw size={17}/></button><button className="icon-button" onClick={next} title="Next step (→)" aria-label="Next step"><SkipForward size={17}/></button><span className="control-divider"/><button className={`toggle-button ${sound?'is-on':''}`} onClick={toggleSound} aria-pressed={sound} aria-label={sound?'Turn sound off':'Turn sound on'}>{sound?<Volume2 size={17}/>:<VolumeX size={17}/>}<span>Sound {sound?'on':'off'}</span></button><button className={`toggle-button ${labels?'is-on':''}`} onClick={()=>setLabels(!labels)} aria-pressed={labels} aria-label="Labels"><Tags size={16}/><span>Labels</span></button><span className="control-divider"/><label className="speed-label"><select aria-label="Animation speed" value={speed} onChange={e=>setSpeed(Number(e.target.value))}><option value={.5}>0.5×</option><option value={1}>1×</option><option value={1.5}>1.5×</option><option value={2}>2×</option></select><ChevronDown size={12}/></label></div>
-  <div className="timeline"><input type="range" aria-label="Animation timeline" min={0} max={total} step={.05} value={time} onChange={seek} style={{'--progress':`${time/total*100}%`}}/><div className="timeline-stages">{STAGES.map((s,i)=><button key={i} className={stage===i?'current':stage>i?'complete':''} onClick={()=>{audio.stop();const t=[0,2,10,10+config.count*3.3][i];clock.current.time=t;clock.current.playing=false;setTime(t);setPlaying(false);setGuided(false)}}><span>{stage>i?<Check size={9}/>:i+1}</span>{s.short}</button>)}</div></div></div>
+  <div className="timeline"><input type="range" aria-label="Animation timeline" min={0} max={total} step={.05} value={time} onChange={seek} style={{'--progress':`${time/total*100}%`}}/><div className="timeline-stages">{STAGES.map((s,i)=><button key={i} className={stage===i?'current':stage>i?'complete':''} onClick={()=>{audio.stop();const t=[0,TIMING.atomicHold,TIMING.bondStart,geometryStart(config)][i];clock.current.time=t;clock.current.playing=false;setTime(t);setPlaying(false);setGuided(false)}}><span>{stage>i?<Check size={9}/>:i+1}</span>{s.short}</button>)}</div></div></div>
   </>}
   <footer className="footer"><span>VISUALISE. UNDERSTAND. REMEMBER.</span><span className="inspect-status">{atomic?(atomicSelected===null?'Click a probability surface or nucleon to inspect':atomicSelected==='proton'?'Proton · charge +1':atomicSelected==='neutron'?'Neutron · charge 0':`${orbitalConfig.label} · surface highlighted`):activeLabel}</span><span>BUILT FOR CURIOSITY <span className="tiny-dot"/></span></footer>
   {info&&<div className="modal-backdrop" onClick={()=>setInfo(false)}><section className="info-dialog" role="dialog" aria-modal="true" aria-labelledby="info-title" onClick={e=>e.stopPropagation()}><button className="modal-close" aria-label="Close information" autoFocus onClick={()=>setInfo(false)}><X size={20}/></button><span className="eyebrow">A CLOSER LOOK</span><h2 id="info-title">Probability, made visible.</h2><p>Orbital surfaces mark regions of high electron probability. Electrons do not travel around these surfaces. Amber and teal indicate opposite wavefunction phases, not electric charges.</p><p>Hybridisation is a mathematical combination of atomic wavefunctions. This continuous morph is a teaching analogy, not a literal time-resolved reaction or a quantum calculation. Orbital scales and formation timings are illustrative.</p><div className="info-fact">{atomic?<><strong>{orbitalConfig.label} · {orbitalConfig.nodes}</strong><span>{orbitalConfig.description} These are qualitative probability boundary diagrams. Radial boundaries show phase regions and nodes; sizes are adjusted for clarity. Transitions between views are visual interpolations, not electron excitation. The cloud uses hydrogen-like |ψ|² density with a smooth display envelope fitted to this boundary, preserving nodes and a faint outer tail; it does not calculate a carbon many-electron wavefunction. Sample shimmer and nucleon vibration are teaching effects. A stationary orbital has time-independent probability density. The example nucleus is carbon-12: six protons and six neutrons. The close view focuses on the nucleus with a faint surrounding density. Deep zoom gradually magnifies nuclear structure, using independent nuclear and orbital display scales rather than literal atomic scale; the real nucleus is much smaller. Nucleons are quantum particles, not a fixed lattice of balls. Orbital shape is shown independently of electron occupancy, including unoccupied carbon d orbitals.</span></>:<><strong>{config.label} · {config.geometry}</strong><span>{config.input} → {config.count} equivalent {config.label} orbitals. {config.note}</span></>}</div><p>Head-on, constructive overlap with hydrogen 1s increases electron density along the internuclear axis and produces a σ bond. The bond angle appears after the final bond forms.</p><a href="https://chem.libretexts.org/Bookshelves/General_Chemistry/Map%3A_Chemistry_-_Atoms_First_%28OpenSTAX%29/05%3A_Advanced_Theories_of_Covalent_Bonding/5.2%3A_Hybrid_Atomic_Orbitals" target="_blank" rel="noreferrer">Explore the theory · Chemistry LibreTexts <ArrowUpRight size={14}/></a><a href="https://openstax.org/books/chemistry/pages/6-3-development-of-quantum-theory" target="_blank" rel="noreferrer">Atomic orbital theory · OpenStax <ArrowUpRight size={14}/></a><a href="https://openstax.org/books/chemistry-2e/pages/21-1-nuclear-structure-and-stability" target="_blank" rel="noreferrer">Nuclear structure · OpenStax <ArrowUpRight size={14}/></a><div className="keyboard-help"><span><kbd>Space</kbd> Play / pause</span><span><kbd>R</kbd> Replay</span><span><kbd>→</kbd> Next step</span></div></section></div>}
