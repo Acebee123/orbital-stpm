@@ -2,7 +2,8 @@ import React,{useMemo,useRef,useEffect} from 'react';
 import {useFrame} from '@react-three/fiber';
 import {Html} from '@react-three/drei';
 import * as THREE from 'three';
-import {hybridMotion,TIMING} from './model.mjs';
+import {hybridMotion,TIMING,smooth} from './model.mjs';
+import {HybridDensityVolume} from './HybridDensityVolume';
 import {hybridRowPosition} from './presentation-model.mjs';
 import {hybridSourceSamples,hybridDensitySamples} from './hybrid-density.mjs';
 const targets=new Map(),sources=new Map(),xaxis=new THREE.Vector3(1,0,0);
@@ -36,7 +37,7 @@ export function HybridDensityOrbital({index,config,clock,selected,onSelect,label
   group.current.position.copy(row).multiplyScalar(1-gather);group.current.scale.setScalar(.68+.32*gather);
   group.current.quaternion.copy(initial).slerp(final,morph).premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1),.58*Math.sin(Math.PI*morph)));
   const u=points.current.material.uniforms;
-  u.morph.value=morph;u.stretch.value=stretch;u.time.value=real.elapsedTime;u.pixelRatio.value=gl.getPixelRatio();u.intensity.value=1;u.highlight.value=selected===index?1:0;
+  u.morph.value=morph;u.stretch.value=stretch;u.time.value=real.elapsedTime;u.pixelRatio.value=gl.getPixelRatio();u.intensity.value=1-smooth((morph-.025)/.30);u.highlight.value=selected===index?1:0;
   if(label.current){label.current.position.copy(group.current.position);if(t<TIMING.morphStart)label.current.position.y+=1.65;else label.current.position.addScaledVector(new THREE.Vector3(...config.directions[index]),3.28);}
   if(data.lastMorph!==morph||data.lastStretch!==stretch){
    const position=data.picker.geometry.attributes.position;
@@ -50,5 +51,5 @@ export function HybridDensityOrbital({index,config,clock,selected,onSelect,label
  };
  return <><group ref={group}><points ref={points} geometry={data.geometry} frustumCulled={false} raycast={raycast} onClick={e=>{e.stopPropagation();onSelect(selected===index?null:index)}} onPointerOver={()=>document.body.style.cursor='pointer'} onPointerOut={()=>document.body.style.cursor='auto'}>
   <shaderMaterial uniforms={uniforms} vertexShader={vertex} fragmentShader={fragment} transparent depthWrite={false}/>
- </points></group><group ref={label}>{labels&&<Html portal={labelHost} center distanceFactor={14} zIndexRange={[3,0]}><span className={`orbital-label hybrid-label ${selected===index?'highlighted':''}`}>{clock.current.time<TIMING.atomicHold?['2s','2pₓ','2pᵧ','2p𝓏'][index]:clock.current.time<TIMING.morphEnd?`mixing · ${index+1}`:`${config.label} · ${index+1}`}</span></Html>}</group></>;
+ </points><HybridDensityVolume clock={clock} index={index} selected={selected}/></group><group ref={label}>{labels&&<Html portal={labelHost} center distanceFactor={14} zIndexRange={[3,0]}><span className={`orbital-label hybrid-label ${selected===index?'highlighted':''}`}>{clock.current.time<TIMING.atomicHold?['2s','2pₓ','2pᵧ','2p𝓏'][index]:clock.current.time<TIMING.morphEnd?`mixing · ${index+1}`:`${config.label} · ${index+1}`}</span></Html>}</group></>;
 }

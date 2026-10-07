@@ -3,7 +3,7 @@ import {S_DISPLAY_RADIUS} from './atomic-model.mjs';
 import {probabilitySamples} from './zoom-model.mjs';
 export const HYBRID_PARTICLE_COUNT=112000;
 export const HYBRID_DISPLAY_SCALE=.34;
-export const HYBRID_LOBES=Object.freeze({front:{length:3.05,width:.82},back:{length:.76,width:.16}});
+export const HYBRID_LOBES=Object.freeze({front:{length:2.85,width:1.08},back:{length:.92,width:.30}});
 // Common normalisation factors cancel: these are direction-aligned 2s / 2p combinations.
 export function hybridWavefunction(key,[x,y,z]){
  const r=Math.hypot(x,y,z),s=1/CONFIG[key].count;
@@ -13,7 +13,7 @@ export function hybridWavefunction(key,[x,y,z]){
 // the narrow reverse lobe is an orbital phase region, never a separate atom.
 export function hybridLobeRadius(x){
  const lobe=x>=0?HYBRID_LOBES.front:HYBRID_LOBES.back,t=Math.abs(x)/lobe.length;
- return t>0&&t<1?lobe.width*Math.sin(Math.PI*t)**.72*(.22+.78*t):0;
+ return t>0&&t<1?lobe.width*Math.sqrt(4*t*(1-t))*(.52+.48*t):0;
 }
 export function hybridEnvelope([x,y,z]){
  const radius=hybridLobeRadius(x);
