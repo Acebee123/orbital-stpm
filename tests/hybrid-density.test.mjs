@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {CONFIG} from '../src/model.mjs';
 import {probabilitySamples} from '../src/zoom-model.mjs';
-import {HYBRID_PARTICLE_COUNT,HYBRID_DISPLAY_SCALE,hybridWavefunction,hybridEnvelope,hybridSourceSamples,hybridDensitySamples} from '../src/hybrid-density.mjs';
-test('all hybrid density clouds use production count, correct wavefunction phases and a faint short tail',()=>{
- assert.equal(HYBRID_PARTICLE_COUNT,56000);
+import {HYBRID_PARTICLE_COUNT,HYBRID_DISPLAY_SCALE,hybridWavefunction,hybridEnvelope,hybridSourceSamples,hybridDensitySamples,HYBRID_LOBES,hybridLobeRadius,hybridDisplayWeight} from '../src/hybrid-density.mjs';
+test('all hybrid density clouds use production count, correct wavefunction phases and smoothly bounded density',()=>{
+ assert.equal(HYBRID_PARTICLE_COUNT,112000);
  for(const key of Object.keys(CONFIG)){
   const cloud=hybridDensitySamples(key);let inside=0,forward=0,rear=0,positive=0,negative=0;
   assert.equal(cloud.signs.length,HYBRID_PARTICLE_COUNT);
@@ -42,5 +42,28 @@ test('starting distributions reuse the atomic sampler, with no mutation of later
   assert.deepEqual(source.signs,base.signs);assert.deepEqual(source.weights,base.weights);
   const ratio=source.positions[9]/base.positions[9];
   for(let n=0;n<base.positions.length;n++)assert.ok(Math.abs(source.positions[n]-base.positions[n]*ratio)<1e-6);
+ }
+});
+
+test('sculpted lobes taper from a shared open origin with a smaller elongated reverse lobe',()=>{
+ for(const [sign,lobe] of [[1,HYBRID_LOBES.front],[-1,HYBRID_LOBES.back]]){
+  assert.equal(hybridLobeRadius(0),0);assert.equal(hybridLobeRadius(sign*lobe.length),0);
+  assert.ok(lobe.length/lobe.width>3.5);
+  assert.ok(hybridLobeRadius(sign*lobe.length*.05)<hybridLobeRadius(sign*lobe.length*.5)*.2);
+  const x=sign*lobe.length*.6,radius=hybridLobeRadius(x);
+  let prior=Infinity;
+  for(const f of [0,.2,.4,.6,.8,.95,1]){
+   const w=hybridDisplayWeight([x,f*radius,0]);assert.ok(w<prior);prior=w;
+  }
+  assert.equal(hybridDisplayWeight([x,radius*1.01,0]),0);
+ }
+ assert.ok(HYBRID_LOBES.front.length>HYBRID_LOBES.back.length*3);
+ assert.ok(HYBRID_LOBES.front.width>HYBRID_LOBES.back.width*3);
+ for(const key of Object.keys(CONFIG)){
+  const cloud=hybridDensitySamples(key,8000);
+  for(let i=0;i<8000;i++){
+   const p=Array.from(cloud.positions.slice(i*3,i*3+3));
+   assert.ok(hybridEnvelope(p)<1);assert.ok(Math.hypot(...p)>.03);
+  }
  }
 });
