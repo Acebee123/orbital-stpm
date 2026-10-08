@@ -3,7 +3,9 @@ import {mkdirSync,readFileSync,writeFileSync,openSync,closeSync,statSync} from '
 import {createRequire} from 'node:module';
 const require=createRequire(import.meta.url);
 const platform={win32:'win32-x64/esbuild.exe',linux:`linux-${process.arch}/bin/esbuild`,darwin:`darwin-${process.arch}/bin/esbuild`}[process.platform];
-const executable=require.resolve(`@esbuild/${platform}`);
+const viteRequire=createRequire(require.resolve('vite/package.json'));
+const esbuildRequire=createRequire(viteRequire.resolve('esbuild/package.json'));
+const executable=esbuildRequire.resolve(`@esbuild/${platform}`);
 mkdirSync('dist/assets',{recursive:true});
 // Parent-opened output handles work in Windows sandboxes where native children
 // can compile but cannot open workspace files themselves. No service pipes.
