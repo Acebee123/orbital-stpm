@@ -89,7 +89,7 @@ export const envelopeWeight=metric=>Math.exp(-((Math.max(0,metric-.88)/.14)**2))
 // Sample |ψ|² in volume: r² |R(r)|² dr, multiplied by |Y(direction)|².
 // A smooth display-envelope weight keeps the illustrative density inside the
 // existing boundary, with a short fading tail. Radial/angular zeros survive.
-// Stored samples never follow trajectories: only their soft intensity pulses.
+// The renderer may switch between these samples while invisible; no trajectories.
 export function probabilitySamples(key,count=4400){
  const c=ATOMIC[key],max=c.family==='s'?[0,4.5,9,16][c.n]:c.family==='p'?9:18;
  const display=c.family==='s'?S_DISPLAY_RADIUS[key]/[0,3.5,7,12][c.n]:c.family==='p'?.3:.2;

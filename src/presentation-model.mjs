@@ -8,6 +8,11 @@ export const ATOMIC_ROTATION=[-Math.PI/2,0,0];
 export const atomicDisplayPoint=([x,y,z])=>[x,z,-y];
 export const HYBRID_DURATION=16;
 export const hybridRowPosition=(index,count)=>[(index-(count-1)/2)*3.3,0,0];
+export function hybridSourcePosition(index,count,compact=false){
+ if(!compact||count===2)return hybridRowPosition(index,count);
+ if(count===3)return [[0,1.8,0],[-1.8,-1.8,0],[1.8,-1.8,0]][index];
+ return [(index%2?1:-1)*1.8,index<2?1.8:-1.8,0];
+}
 export const hybridStageAt=t=>t<TIMING.atomicHold?0:t<TIMING.morphStart?1:t<TIMING.morphEnd?2:3;
 export const hybridReveal=t=>smooth((t-TIMING.morphEnd-.5)/2);
 export const HYBRID_STAGES=[

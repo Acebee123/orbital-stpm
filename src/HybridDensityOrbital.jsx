@@ -3,20 +3,22 @@ import {useFrame} from '@react-three/fiber';
 import {Html} from '@react-three/drei';
 import * as THREE from 'three';
 import {hybridMotion,TIMING} from './model.mjs';
-import {hybridRowPosition} from './presentation-model.mjs';
+import {hybridSourcePosition} from './presentation-model.mjs';
 import {hybridSourceSamples,hybridDensitySamples} from './hybrid-density.mjs';
+import {particleDriftGLSL} from './particle-motion.mjs';
 const targets=new Map(),sources=new Map(),xaxis=new THREE.Vector3(1,0,0);
 const direction=d=>new THREE.Quaternion().setFromUnitVectors(xaxis,new THREE.Vector3(...d));
 const vertex=`attribute vec3 targetPosition;attribute float sourcePhase;attribute float targetPhase;attribute float sampleSeed;attribute float sourceWeight;attribute float targetWeight;
-uniform float morph;uniform float stretch;uniform float time;uniform float pixelRatio;varying vec3 phaseColor;varying float alphaWeight;varying float brightness;
+uniform float particleStyle;uniform float morph;uniform float stretch;uniform float time;uniform float pixelRatio;varying vec3 phaseColor;varying float alphaWeight;varying float brightness;
 vec3 phase(float value){return value<0.?vec3(.34,.57,.53):vec3(.72,.57,.34);}
-void main(){vec3 densityPoint=mix(position,targetPosition,morph);densityPoint.x*=stretch;vec4 p=modelViewMatrix*vec4(densityPoint,1.);float weight=mix(sourceWeight,targetWeight,morph);phaseColor=mix(phase(sourcePhase),phase(targetPhase),morph);float shimmer=.88+.12*sin(time*.35+sampleSeed);float accent=step(.78,fract(sampleSeed*1.618));alphaWeight=weight*shimmer*mix(.20,1.,accent);brightness=.62+.38*sqrt(weight);gl_Position=projectionMatrix*p;float pointSize=mix(14.,22.,accent)*pixelRatio*(.68+.32*sqrt(weight))*(.86+.14*sin(sampleSeed*2.))/max(.6,-p.z);gl_PointSize=clamp(pointSize,mix(.65,1.35,accent)*pixelRatio,mix(1.6,2.7,accent)*pixelRatio);}`;
-const fragment=`uniform float intensity;uniform float highlight;uniform float morph;varying vec3 phaseColor;varying float alphaWeight;varying float brightness;void main(){vec2 uv=gl_PointCoord-.5;float r=length(uv);if(r>.5)discard;float softPoint=exp(-r*r*24.)*(1.-smoothstep(.38,.5,r));float core=exp(-r*r*65.);vec3 color=mix(phaseColor,vec3(.91,.89,.79),core*.16)*brightness*(1.+highlight*.15);gl_FragColor=vec4(color,softPoint*mix(.25,.42,morph)*alphaWeight*intensity);
+${particleDriftGLSL}
+void main(){vec3 densityPoint=driftPoint(mix(position,targetPosition,morph),time*particleStyle,sampleSeed,9.);densityPoint.x*=stretch;vec4 p=modelViewMatrix*vec4(densityPoint,1.);float weight=mix(sourceWeight,targetWeight,morph);phaseColor=mix(phase(sourcePhase),phase(targetPhase),morph);float shimmer=1.;float accent=step(.95,fract(sampleSeed*1.618));alphaWeight=weight*shimmer*mix(.30,1.8,accent);brightness=.62+.38*sqrt(weight);gl_Position=projectionMatrix*p;float pointSize=mix(14.,23.,accent)*pixelRatio*(.68+.32*sqrt(weight))*(.86+.14*sin(sampleSeed*2.))/max(.6,-p.z);gl_PointSize=clamp(pointSize,mix(.65,1.35,accent)*pixelRatio,mix(2.,3.3,accent)*pixelRatio);}`;
+const fragment=`uniform float intensity;uniform float highlight;uniform float morph;varying vec3 phaseColor;varying float alphaWeight;varying float brightness;void main(){vec2 uv=gl_PointCoord-.5;float r=length(uv);if(r>.5)discard;float softPoint=exp(-r*r*24.)*(1.-smoothstep(.38,.5,r));float core=exp(-r*r*65.);vec3 color=mix(phaseColor,vec3(.91,.89,.79),core*.16)*brightness*(1.+highlight*.15);gl_FragColor=vec4(color,softPoint*mix(.25,.40,morph)*alphaWeight*intensity);
 #include <tonemapping_fragment>
 #include <colorspace_fragment>
 }`;
-export function HybridDensityOrbital({index,config,clock,selected,onSelect,labels,labelHost}){
- const group=useRef(),points=useRef(),label=useRef();
+export function HybridDensityOrbital({index,config,clock,selected,onSelect,labels,labelHost,motion,particleStyle}){
+ const group=useRef(),points=useRef(),label=useRef(),motionTime=useRef(0);
  const data=useMemo(()=>{
   const sourceKey=index===0?'s':'p';
   if(!sources.has(sourceKey))sources.set(sourceKey,hybridSourceSamples(index));
@@ -27,16 +29,18 @@ export function HybridDensityOrbital({index,config,clock,selected,onSelect,label
   picker.geometry.setAttribute('position',new THREE.BufferAttribute(new Float32Array(indices.length*3),3));
   return {source,target,geometry,picker,indices,lastMorph:-1,lastStretch:-1};
  },[index,config.key]);
- const uniforms=useMemo(()=>({morph:{value:0},stretch:{value:1},time:{value:0},pixelRatio:{value:1},intensity:{value:1},highlight:{value:0}}),[]);
+ const uniforms=useMemo(()=>({particleStyle:{value:0},morph:{value:0},stretch:{value:1},time:{value:0},pixelRatio:{value:1},intensity:{value:1},highlight:{value:0}}),[]);
  useEffect(()=>()=>{data.geometry.dispose();data.picker.geometry.dispose();data.picker.material.dispose()},[data]);
  const initial=direction(index===0?[1,0,0]:[[1,0,0],[0,1,0],[0,0,1]][index-1]),final=direction(config.directions[index]);
- const row=new THREE.Vector3(...hybridRowPosition(index,config.count));
- useFrame(({gl,clock:real})=>{
+ const row=new THREE.Vector3();
+ useFrame(({gl},delta)=>{
+  if(motion)motionTime.current+=Math.min(delta,.1);
   const t=clock.current.time,{gather,morph}=hybridMotion(t),stretch=1;
+  row.set(...hybridSourcePosition(index,config.count,gl.domElement.clientWidth<560));
   group.current.position.copy(row).multiplyScalar(1-gather);group.current.scale.setScalar(.68+.32*gather);
   group.current.quaternion.copy(initial).slerp(final,morph).premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1),.58*Math.sin(Math.PI*morph)));
   const u=points.current.material.uniforms;
-  u.morph.value=morph;u.stretch.value=stretch;u.time.value=real.elapsedTime;u.pixelRatio.value=gl.getPixelRatio();u.intensity.value=1;u.highlight.value=selected===index?1:0;
+  u.morph.value=morph;u.stretch.value=stretch;u.time.value=motionTime.current;u.particleStyle.value=particleStyle==='drift'?1:0;u.pixelRatio.value=gl.getPixelRatio();u.intensity.value=1;u.highlight.value=selected===index?1:0;
   if(label.current){label.current.position.copy(group.current.position);if(t<TIMING.morphStart)label.current.position.y+=1.65;else label.current.position.addScaledVector(new THREE.Vector3(...config.directions[index]),3.28);}
   if(data.lastMorph!==morph||data.lastStretch!==stretch){
    const position=data.picker.geometry.attributes.position;
