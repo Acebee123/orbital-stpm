@@ -1,7 +1,7 @@
 import {CONFIG,smooth} from './model.mjs';
 import {S_DISPLAY_RADIUS} from './atomic-model.mjs';
 import {probabilitySamples} from './zoom-model.mjs';
-export const HYBRID_PARTICLE_COUNT=112000;
+export const HYBRID_PARTICLE_COUNT=117040;
 export const HYBRID_DISPLAY_SCALE=.34;
 export const HYBRID_LOBES=Object.freeze({front:{length:2.85,width:1.08},back:{length:.92,width:.30}});
 // Common normalisation factors cancel: these are direction-aligned 2s / 2p combinations.

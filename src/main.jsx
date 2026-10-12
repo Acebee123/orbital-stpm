@@ -3,7 +3,8 @@ import {createRoot} from 'react-dom/client';
 import {Canvas,useFrame,useThree} from '@react-three/fiber';
 import {OrbitControls} from '@react-three/drei';
 import * as THREE from 'three';
-import {Play,Pause,RotateCcw,SkipForward,Volume2,VolumeX,Focus,Atom,Axis3D,SlidersHorizontal,ZoomIn,Gauge,CircleDashed,Cloud,Waves,Network} from 'lucide-react';
+import {Play,Pause,RotateCcw,SkipForward,Volume2,VolumeX,Focus,Atom,Axis3D,SlidersHorizontal,ZoomIn,Gauge,CircleDashed,Cloud,Waves,Network,Table2} from 'lucide-react';
+import {PeriodicTable} from './PeriodicTable';
 import {CONFIG,TIMING,hybridMotion} from './model.mjs';
 import {audio} from './audio';
 import {createCameraControl,takeCameraControl,releaseCameraControl,resetCameraControl,restartCameraTimeline,canGuideCamera} from './camera-model.mjs';
@@ -28,7 +29,7 @@ function Studio({config,clock,selected,onSelect,labels,stage,resetKey,guided,onI
  const {camera,gl}=useThree();
  const beginInteraction=()=>{cameraState.current.reset=0;cameraState.current.zoomTarget=null;if(!atomic)takeCameraControl(cameraControl.current,clock.current.time,performance.now());onInteraction();};
  const endInteraction=()=>{if(!atomic)releaseCameraControl(cameraControl.current,performance.now());};
- useEffect(()=>{gl.setClearColor('#0b1517',0)},[gl]);
+ useEffect(()=>{gl.setClearColor('#f4f7f3',0)},[gl]);
  useFrame((_,delta)=>{
   const c=clock.current,t=c.time;timer.current+=delta;
   const overviewDistance=({'1s':7.7,'2s':10.3,'3s':13.5}[orbital]??(ATOMIC[orbital]?.family==='p'?9.6:10.5))*Math.max(1,.65/camera.aspect);
@@ -97,12 +98,12 @@ class SceneBoundary extends Component {
 
 function App(){
  const [section,setSection]=useState('atomic'),[orbital,setOrbital]=useState('1s'),[axes,setAxes]=useState(false),[cutaway,setCutaway]=useState(false),[atomicSelected,setAtomicSelected]=useState(null);
- const atomic=section==='atomic',orbitalConfig=ATOMIC[orbital];
+ const atomic=section==='atomic',periodic=section==='periodic',orbitalConfig=ATOMIC[orbital];
  const cameraControl=useRef(createCameraControl());
  const zoom=useRef({serial:0,request:0,progress:0,}),[zoomProgress,setZoomProgress]=useState(0),[motion,setMotion]=useState(()=>!window.matchMedia('(prefers-reduced-motion: reduce)').matches);
  const requestZoom=value=>{zoom.current.request=value;zoom.current.serial++;};
  useEffect(()=>{const id=setInterval(()=>setZoomProgress(zoom.current.progress),125);return()=>clearInterval(id)},[]);
- const navigate=tab=>{audio.stop();clock.current.playing=false;setPlaying(false);setGuided(false);setSection(tab);setSelected(null);if(tab==='atomic'){requestZoom(0);zoom.current.progress=0;setZoomProgress(0)}else if(tab==='hybrid'&&section!=='hybrid'){clock.current.time=0;setTime(0)}if(tab==='atomic'||section==='atomic'){resetCameraControl(cameraControl.current);setReset(r=>r+1)}};
+ const navigate=tab=>{audio.stop();clock.current.playing=false;setPlaying(false);setGuided(false);setSection(tab);setSelected(null);if(tab==='atomic'){requestZoom(0);zoom.current.progress=0;setZoomProgress(0)}else if(tab==='hybrid'&&section!=='hybrid'){clock.current.time=0;setTime(0)}if(tab==='atomic'||section==='atomic'||section==='periodic'){resetCameraControl(cameraControl.current);setReset(r=>r+1)}};
  const chooseOrbital=key=>{setOrbital(key);setAtomicSelected(null);requestZoom(0);setReset(r=>r+1)};
  const [mode,setMode]=useState('sp3'),[playing,setPlaying]=useState(false),[time,setTime]=useState(0),[labels]=useState(false),[sound,setSound]=useState(false),[volume,setVolume]=useState(()=>Math.round(audio.volume*100)),[speed,setSpeed]=useState(1),[selected,setSelected]=useState(null),[settings,setSettings]=useState(false),[particleStyle,setParticleStyle]=useState('drift'),[resetKey,setReset]=useState(0),[guided,setGuided]=useState(false);
  const labelHost=useRef(),compassHost=useRef(); const clock=useRef({time:0,playing:false,speed:1,impulse:0});const config=CONFIG[mode],stage=hybridStageAt(time),total=HYBRID_DURATION,lessonStages=HYBRID_STAGES;
@@ -113,21 +114,24 @@ function App(){
  const replay=async()=>{await audio.unlock();audio.stop();clock.current.time=0;clock.current.playing=true;setTime(0);setPlaying(true);setGuided(!cameraControl.current.userOwned);setSelected(null);restartCameraTimeline(cameraControl.current)};
  const next=()=>{audio.stop();const milestones=[TIMING.atomicHold,TIMING.morphStart,TIMING.morphEnd,total];const target=milestones.find(x=>x>clock.current.time+.15)??total;clock.current.time=target;clock.current.playing=false;setTime(target);setPlaying(false);setGuided(false)};
  const toggleSound=async()=>{await audio.unlock();audio.enabled=!sound;setSound(!sound);if(sound)audio.stop()};
- useEffect(()=>{const handler=e=>{if(e.key==='Escape'){setSettings(false);return}if(['INPUT','SELECT','BUTTON'].includes(e.target.tagName)||atomic)return;if(e.code==='Space'){e.preventDefault();play()}if(e.key.toLowerCase()==='r')replay();if(e.key==='ArrowRight')next()};window.addEventListener('keydown',handler);return()=>window.removeEventListener('keydown',handler)},[total,playing,atomic]);
+ useEffect(()=>{const handler=e=>{if(e.key==='Escape'){setSettings(false);return}if(['INPUT','SELECT','BUTTON'].includes(e.target.tagName)||atomic||periodic)return;if(e.code==='Space'){e.preventDefault();play()}if(e.key.toLowerCase()==='r')replay();if(e.key==='ArrowRight')next()};window.addEventListener('keydown',handler);return()=>window.removeEventListener('keydown',handler)},[total,playing,atomic,periodic]);
 
  useEffect(()=>{const handler=()=>{if(document.hidden){clock.current.playing=false;audio.stop();setPlaying(false);setGuided(false)}};document.addEventListener('visibilitychange',handler);return()=>document.removeEventListener('visibilitychange',handler)},[]);
  const seek=e=>{audio.stop();clock.current.time=Number(e.target.value);clock.current.playing=false;setTime(clock.current.time);setPlaying(false);setGuided(false)};
- return <main className={`experience ${atomic?'atomic-experience':''}`}>
+ return <main className={`experience ${atomic?'atomic-experience':''} ${periodic?'periodic-experience':''}`}>
+  {!periodic&&<>
   <div className="canvas-wrap"><SceneBoundary><Canvas camera={{position:[3.35,2.18,6.71],fov:40,near:.1,far:100}} frameloop="demand" dpr={[1,1.5]} gl={{antialias:true,alpha:true,powerPreference:'high-performance',toneMapping:THREE.ACESFilmicToneMapping,toneMappingExposure:1.12}}><Suspense fallback={null}><Studio key={atomic?'atomic':'hybrid'} config={config} clock={clock} selected={selected} onSelect={setSelected} labels={labels} stage={stage} resetKey={resetKey} guided={guided} onInteraction={()=>setGuided(false)} cameraControl={cameraControl} labelHost={labelHost} atomic={atomic} orbital={orbital} axes={axes} cutaway={cutaway} atomicSelected={atomicSelected} onAtomicSelect={setAtomicSelected} zoom={zoom} zoomProgress={zoomProgress} motion={motion} particleStyle={particleStyle} compassHost={compassHost}/></Suspense></Canvas></SceneBoundary><div className="scene-label-layer" ref={labelHost}/></div>
   <div className="ambient-vignette"/>
   <div className="orbital-readout" aria-label="Selected orbital">{atomic?<OrbitalName kind={orbital}/>:config.label}</div>
-  <div className="phase-indicator" role="img" aria-label="Amber and teal represent opposite wavefunction phases"><Waves/><span className="phase-chip"><i/><svg viewBox="0 0 12 12" stroke="currentColor"><path d="M2 6H10M6 2V10"/></svg></span><span className="phase-chip"><i/><svg viewBox="0 0 12 12" stroke="currentColor"><path d="M2 6H10"/></svg></span></div>
-  <button className="orientation-compass" aria-label="Reset camera orientation" onClick={()=>{resetCameraControl(cameraControl.current);setReset(x=>x+1);setGuided(!atomic&&clock.current.playing)}}><svg viewBox="0 0 72 72"><g ref={compassHost}>{['#d4a789','#89b8ad','#9eacc7'].map((color,i)=><g key={i} stroke={color} fill={color}><line x1="36" y1="36" x2={[58,36,19][i]} y2={[36,13,53][i]} strokeWidth="1.3"/><circle cx={[58,36,19][i]} cy={[36,13,53][i]} r="2.5" strokeWidth="0"/></g>)}</g><circle cx="36" cy="36" r="2" fill="#cbd3c5"/></svg></button>
+  <div className="phase-indicator" role="img" aria-label="Blue and magenta represent opposite wavefunction phases"><Waves/><span className="phase-chip"><i/><svg viewBox="0 0 12 12" stroke="currentColor"><path d="M2 6H10M6 2V10"/></svg></span><span className="phase-chip"><i/><svg viewBox="0 0 12 12" stroke="currentColor"><path d="M2 6H10"/></svg></span></div>
+  <button className="orientation-compass" aria-label="Reset camera orientation" onClick={()=>{resetCameraControl(cameraControl.current);setReset(x=>x+1);setGuided(!atomic&&clock.current.playing)}}><svg viewBox="0 0 72 72"><g ref={compassHost}>{['#986748','#257e6c','#5268a4'].map((color,i)=><g key={i} stroke={color} fill={color}><line x1="36" y1="36" x2={[58,36,19][i]} y2={[36,13,53][i]} strokeWidth="1.3"/><circle cx={[58,36,19][i]} cy={[36,13,53][i]} r="2.5" strokeWidth="0"/></g>)}</g><circle cx="36" cy="36" r="2" fill="#4b625c"/></svg></button>
+  </>}
   <nav className="module-nav" aria-label="Learning modules">
+   <button aria-label="Periodic table" title="Periodic table" aria-pressed={periodic} onClick={()=>navigate('periodic')}><Table2 size={25}/></button>
    <button aria-label="Atomic orbitals" aria-pressed={atomic} onClick={()=>navigate('atomic')}><OrbitalGlyph kind="pz"/></button>
-   <button aria-label="Hybridization" aria-pressed={!atomic} onClick={()=>navigate('hybrid')}><Network size={25}/></button>
+   <button aria-label="Hybridization" aria-pressed={section==='hybrid'} onClick={()=>navigate('hybrid')}><Network size={25}/></button>
   </nav>
-  <section className={`floating-panel ${atomic?'atomic-dock':'hybrid-dock'}`} aria-label="Orbital controls">
+  {periodic?<PeriodicTable onExplore={key=>{chooseOrbital(key);navigate('atomic')}}/>:<section className={`floating-panel ${atomic?'atomic-dock':'hybrid-dock'}`} aria-label="Orbital controls">
    <div className="selection-row">
     {atomic?<><div className="families" role="group" aria-label="Orbital family">{['s','p','d'].map(f=><button key={f} aria-label={`${f} orbitals`} aria-pressed={orbitalConfig.family===f} onClick={()=>chooseOrbital(f==='s'?'1s':f==='p'?'px':'dxy')}><OrbitalGlyph kind={f==='s'?'1s':f==='p'?'px':'dxy'}/><span className="family-name">{f}</span></button>)}</div>
      <i className="divider"/><div className="variants" role="group" aria-label="Orbital selection">{Object.entries(ATOMIC).filter(([,c])=>c.family===orbitalConfig.family).map(([key,c])=><button key={key} aria-label={c.label} aria-pressed={orbital===key} onClick={()=>chooseOrbital(key)}><OrbitalGlyph kind={key}/><span className="option-name"><OrbitalName kind={key}/></span></button>)}</div></>:
@@ -153,7 +157,7 @@ function App(){
     <button aria-label="Settings" aria-expanded={settings} aria-controls="settings" onClick={()=>setSettings(!settings)}><SlidersHorizontal size={19}/></button>
    </div>
    {!atomic&&<div className="timeline"><input type="range" aria-label="Animation timeline" min="0" max={total} step=".05" value={time} onChange={seek}/><div className="stage-dots">{lessonStages.map((s,i)=><button key={i} aria-label={s.short} aria-pressed={stage===i} onClick={()=>{audio.stop();const t=[0,TIMING.atomicHold,TIMING.morphStart,TIMING.morphEnd][i];clock.current.time=t;clock.current.playing=false;setTime(t);setPlaying(false);setGuided(false)}}><i/></button>)}</div></div>}
-  </section>
+  </section>}
  </main>
 }
 createRoot(document.getElementById('root')).render(<App/>);

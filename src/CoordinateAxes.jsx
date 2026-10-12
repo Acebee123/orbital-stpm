@@ -3,7 +3,7 @@ import {Html,Line} from '@react-three/drei';
 import * as THREE from 'three';
 
 const directions=[[1,0,0],[0,1,0],[0,0,1]];
-const colors=['#c9a18a','#98bfb2','#a7b7d1'];
+const colors=['#986748','#257e6c','#5268a4'];
 export function CoordinateAxes({labelHost,length=3.15}){
  return <group>{directions.map((direction,i)=><group key={i}>
   <Line points={[direction.map(v=>-v*length),direction.map(v=>v*length)]} color={colors[i]} lineWidth={.8} transparent opacity={.5}/>
