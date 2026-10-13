@@ -1,9 +1,29 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {driftPoint,orbitalMotionType} from '../src/particle-motion.mjs';
+import {driftPoint,orbitalMotionType,advanceParticleTime} from '../src/particle-motion.mjs';
 import {probabilitySamples,angularAmplitude} from '../src/zoom-model.mjs';
 import {ATOMIC} from '../src/atomic-model.mjs';
 import {hybridDensitySamples,hybridWavefunction,hybridEnvelope} from '../src/hybrid-density.mjs';
+test('particle clock keeps advancing past a completed lesson, with deliberate pause and smooth resume',()=>{
+ let lessonTime=0,particleTime=0;
+ for(let i=0;i<6000;i++){lessonTime=Math.min(16,lessonTime+1/60);particleTime=advanceParticleTime(particleTime,1/60,true);}
+ assert.equal(lessonTime,16);assert.ok(particleTime>99.99);
+ const paused=advanceParticleTime(particleTime,1/60,false);assert.equal(paused,particleTime);
+ assert.ok(Math.abs(advanceParticleTime(paused,1/60,true)-paused-1/60)<1e-12);
+ assert.ok(Math.abs(advanceParticleTime(paused,60,true)-paused-.1)<1e-12);
+});
+test('all s/p/d and hybrid distributions still move at late times without a terminal frame',()=>{
+ const clouds=Object.keys(ATOMIC).map(key=>({key,type:orbitalMotionType(key),samples:probabilitySamples(key,64)}));
+ for(const key of ['sp','sp2','sp3'])clouds.push({key,type:9,samples:hybridDensitySamples(key,64)});
+ for(const {key,type,samples} of clouds)for(const t of [16,120,3600,86400]){
+  let moving=0;
+  for(let i=0;i<samples.seeds.length;i++){
+   const p=Array.from(samples.positions.subarray(i*3,i*3+3)),a=driftPoint(type,p,t,samples.seeds[i]),b=driftPoint(type,p,t+1,samples.seeds[i]);
+   if(Math.hypot(...a.map((v,k)=>v-b[k]))>1e-10)moving++;
+  }
+  assert.equal(moving,samples.seeds.length,`${key} remains in motion at ${t}s`);
+ }
+});
 test('continuous atomic drift retains radial shells and angular nodal sectors',()=>{
  for(const key of Object.keys(ATOMIC)){
   const samples=probabilitySamples(key,256),type=orbitalMotionType(key);
