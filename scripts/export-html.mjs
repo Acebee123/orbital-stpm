@@ -14,4 +14,5 @@ if (html.includes('src="/src/main.jsx"')) throw new Error('HTML export did not r
 const output = resolve(process.argv[2] || 'orbital.html');
 mkdirSync(dirname(output), {recursive: true});
 writeFileSync(output, html);
+writeFileSync(resolve('dist/orbital.html'), html);
 console.log(`Standalone HTML: ${output} (${statSync(output).size} bytes)`);
