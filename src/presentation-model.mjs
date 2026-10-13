@@ -1,5 +1,5 @@
 import {TIMING,smooth} from './model.mjs';
-export const ATOMIC_PARTICLE_COUNT=58520;
+export const ATOMIC_PARTICLE_COUNT=56764;
 // s selections replace the prior cloud. Fade only the selected distribution in;
 // never superimpose different s orbitals, including during rapid selections.
 export const atomicCloudVisibility=(key,index,active,fade)=>

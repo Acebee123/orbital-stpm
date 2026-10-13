@@ -5,7 +5,7 @@ import {AufbauGuide} from './AufbauGuide';
 import {FillingScene} from './FillingScene';
 import {validateConfiguration} from './configuration-model.mjs';
 export function PeriodicTable(){
- const [selected,setSelected]=useState(null),[active,setActive]=useState(null),[drafts,setDrafts]=useState({}),[origin,setOrigin]=useState(null),[guide,setGuide]=useState(false),[view3D,setView3D]=useState(false);
+ const [selected,setSelected]=useState(null),[active,setActive]=useState(null),[drafts,setDrafts]=useState({}),[origin,setOrigin]=useState(null),[guide,setGuide]=useState(false),[view3D,setView3D]=useState(false),[electronSpeed,setElectronSpeed]=useState(1.10);
  const refs=useRef(new Map()),serial=useRef(0);
  const newRow=useCallback((type='')=>({id:++serial.current,n:'',type,electrons:'',spins:null}),[]);
  const close=useCallback(()=>{setActive(null);setView3D(false);setOrigin(null);requestAnimationFrame(()=>refs.current.get(selected)?.focus());},[selected]);
@@ -30,7 +30,7 @@ export function PeriodicTable(){
    <span className="series-label" style={{gridColumn:'1 / 4',gridRow:10}}>4f</span><span className="series-label" style={{gridColumn:'1 / 4',gridRow:11}}>5f</span>
   </div></div></div>
   {active&&!show3D&&<ConfigurationBuilder number={active} rows={drafts[active]} onRows={editRows} newRow={newRow} onElement={number=>open(number)} onClose={close} onAufbau={()=>setGuide(true)} onView3D={()=>{if(complete)setView3D(true)}} origin={origin}/>}
-  {active&&show3D&&<FillingScene guideOpen={guide} key={active} number={active} onNumber={number=>open(number)} onBack={()=>setView3D(false)} onAufbau={()=>setGuide(true)}/>}
+  {active&&show3D&&<FillingScene electronSpeed={electronSpeed} onElectronSpeed={setElectronSpeed} guideOpen={guide} key={active} number={active} onNumber={number=>open(number)} onBack={()=>setView3D(false)} onAufbau={()=>setGuide(true)}/>}
   {guide&&<AufbauGuide onClose={closeGuide}/>}
  </section>;
 }
