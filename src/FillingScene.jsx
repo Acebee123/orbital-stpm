@@ -34,7 +34,7 @@ function FillingStudio({clock,number,view,mode,resetSerial,onSnapshot}){
  const shell=CONFIGURATION_ELEMENTS[number-1].configuration.find(r=>r.key===view.key),n=view.key==='atom'?CONFIGURATION_ELEMENTS[number-1].configuration.at(-1).n:shell.n;
  useFrame((_,delta)=>{
   const dt=Math.min(delta,.1);
-  if(clock.current.playing){clock.current.time=Math.min(number*FILL_SECONDS,clock.current.time+dt);clock.current.motionTime+=dt;}
+  if(clock.current.playing){clock.current.time=Math.min(number*FILL_SECONDS,clock.current.time+dt);clock.current.motionTime+=dt*1.10;}
   if(guide.current.key!==`${n}:${camera.aspect}`){guide.current.key=`${n}:${camera.aspect}`;guide.current.distance=({1:7.2,2:9.6,3:11.8,4:14}[n])*Math.max(1,.75/camera.aspect);}
   if(!ownership.current&&orbit.current){
    const target=orbit.current.target,offset=camera.position.clone().sub(target),direction=guide.current.reset?new THREE.Vector3(5,2.5,9).normalize():offset.clone().normalize(),desired=target.clone().addScaledVector(direction,guide.current.distance);
