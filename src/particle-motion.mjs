@@ -1,4 +1,7 @@
 export const orbitalMotionType=key=>({'px':1,'py':2,'pz':3,'dxy':4,'dxz':5,'dyz':6,'dx2y2':7,'dz2':8}[key]??0);
+// Independent of the lesson timeline: reaching the final shape never ends flow.
+// Clamp the frame gap so returning from a hidden tab does not jump the samples.
+export const advanceParticleTime=(time,delta,running)=>running?time+Math.max(0,Math.min(delta,.1)):time;
 // Visual flow only. Symmetry rotations preserve radial and angular density for
 // s, p and dz2; other d orbitals use a small tangent drift bounded by node distance.
 export function driftPoint(type,p,time,seed){

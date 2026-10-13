@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import {probabilitySamples} from './zoom-model.mjs';
 import {ATOMIC} from './atomic-model.mjs';
 import {ATOMIC_PARTICLE_COUNT,atomicCloudVisibility} from './presentation-model.mjs';
-import {particleDriftGLSL,orbitalMotionType,driftPoint} from './particle-motion.mjs';
+import {particleDriftGLSL,orbitalMotionType,driftPoint,advanceParticleTime} from './particle-motion.mjs';
 const vertex=`attribute float phaseSign;attribute float sampleSeed;attribute float densityWeight;uniform float particleStyle;uniform float time;uniform float detail;uniform float pixelRatio;uniform float focusDistance;uniform float highlight;varying vec3 samplePosition;varying float signValue;varying float shimmer;varying float weight;varying float softness;varying float accent;
 uniform float orbitalType;
 ${particleDriftGLSL}
@@ -43,7 +43,7 @@ export function ProbabilityCloud({orbital,zoom,motion,cutaway,selected,onSelect,
   if(hits.length){const closest=hits.reduce((a,b)=>a.distance<b.distance?a:b);intersections.push({...closest,object:cloud});}
  };
  useFrame(({gl,camera},delta)=>{
-  if(motion)motionTime.current+=Math.min(delta,.1);
+  motionTime.current=advanceParticleTime(motionTime.current,delta,motion);
   blend.current=Math.min(1,blend.current+delta/1.25);const fade=blend.current**2*(3-2*blend.current),distance=camera.position.distanceTo(new THREE.Vector3(0,.5,0));
   uniforms.forEach((_,i)=>{const cloud=refs.current[i],u=cloud?.material.uniforms;if(!u)return;const key=keys.current[i];u.time.value=motionTime.current;u.particleStyle.value=particleStyle==='drift'?1:0;u.orbitalType.value=orbitalMotionType(keys.current[i]);u.detail.value=Math.max(0,Math.min(1,(14.5-distance)/10));u.focusDistance.value=distance;u.highlight.value=selected===0?1:0;u.pixelRatio.value=gl.getPixelRatio();u.cutaway.value=cutaway&&key&&ATOMIC[key].family==='s'&&key!=='1s'?1:0;u.visibility.value=atomicCloudVisibility(orbital,i,active.current,fade);cloud.visible=u.visibility.value>.0001});
  });

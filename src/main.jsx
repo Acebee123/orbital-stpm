@@ -78,7 +78,7 @@ function Studio({config,clock,selected,onSelect,labels,stage,resetKey,guided,onI
   <pointLight position={[0,2,3]} color="#e9b674" intensity={9} distance={13} decay={2}/>
   <group ref={world} position={[0,.5,0]}>
    {atomic?<AtomicOrbitals orbital={orbital} labels={labels} axes={axes} cutaway={cutaway} selected={atomicSelected} onSelect={onAtomicSelect} labelHost={labelHost} zoom={zoom} motion={motion} particleStyle={particleStyle}/>:<>
-   {config.directions.map((_,i)=><HybridDensityOrbital key={i} index={i} config={config} clock={clock} selected={selected} onSelect={onSelect} labels={labels} labelHost={labelHost} motion={motion&&clock.current.playing} particleStyle={particleStyle}/>)}
+   {config.directions.map((_,i)=><HybridDensityOrbital key={i} index={i} config={config} clock={clock} selected={selected} onSelect={onSelect} labels={labels} labelHost={labelHost} motion={motion} particleStyle={particleStyle}/>)}
    {axes&&<CoordinateAxes labelHost={labelHost} length={3.5}/>}
    </>}
   </group>
@@ -106,6 +106,8 @@ function App(){
  const navigate=tab=>{audio.stop();clock.current.playing=false;setPlaying(false);setGuided(false);setSection(tab);setSelected(null);if(tab==='atomic'){requestZoom(0);zoom.current.progress=0;setZoomProgress(0)}else if(tab==='hybrid'&&section!=='hybrid'){clock.current.time=0;setTime(0)}if(tab==='atomic'||section==='atomic'||section==='periodic'){resetCameraControl(cameraControl.current);setReset(r=>r+1)}};
  const chooseOrbital=key=>{setOrbital(key);setAtomicSelected(null);requestZoom(0);setReset(r=>r+1)};
  const [mode,setMode]=useState('sp3'),[playing,setPlaying]=useState(false),[time,setTime]=useState(0),[labels]=useState(false),[sound,setSound]=useState(false),[volume,setVolume]=useState(()=>Math.round(audio.volume*100)),[speed,setSpeed]=useState(1),[selected,setSelected]=useState(null),[settings,setSettings]=useState(false),[particleStyle,setParticleStyle]=useState('drift'),[resetKey,setReset]=useState(0),[guided,setGuided]=useState(false);
+ const particlesMoving=motion&&particleStyle==='drift';
+ const toggleParticles=()=>{setMotion(!particlesMoving);if(!particlesMoving)setParticleStyle('drift')};
  const labelHost=useRef(),compassHost=useRef(); const clock=useRef({time:0,playing:false,speed:1,impulse:0});const config=CONFIG[mode],stage=hybridStageAt(time),total=HYBRID_DURATION,lessonStages=HYBRID_STAGES;
  useEffect(()=>{const id=setInterval(()=>{setTime(clock.current.time);setPlaying(clock.current.playing);if(clock.current.time>=total)setGuided(false)},75);return()=>clearInterval(id)},[total]);
  useEffect(()=>{clock.current.speed=speed},[speed]);
@@ -120,7 +122,7 @@ function App(){
  const seek=e=>{audio.stop();clock.current.time=Number(e.target.value);clock.current.playing=false;setTime(clock.current.time);setPlaying(false);setGuided(false)};
  return <main className={`experience ${atomic?'atomic-experience':''} ${periodic?'periodic-experience':''}`}>
   {!periodic&&<>
-  <div className="canvas-wrap"><SceneBoundary><Canvas camera={{position:[3.35,2.18,6.71],fov:40,near:.1,far:100}} frameloop="demand" dpr={[1,1.5]} gl={{antialias:true,alpha:true,powerPreference:'high-performance',toneMapping:THREE.ACESFilmicToneMapping,toneMappingExposure:1.12}}><Suspense fallback={null}><Studio key={atomic?'atomic':'hybrid'} config={config} clock={clock} selected={selected} onSelect={setSelected} labels={labels} stage={stage} resetKey={resetKey} guided={guided} onInteraction={()=>setGuided(false)} cameraControl={cameraControl} labelHost={labelHost} atomic={atomic} orbital={orbital} axes={axes} cutaway={cutaway} atomicSelected={atomicSelected} onAtomicSelect={setAtomicSelected} zoom={zoom} zoomProgress={zoomProgress} motion={motion} particleStyle={particleStyle} compassHost={compassHost}/></Suspense></Canvas></SceneBoundary><div className="scene-label-layer" ref={labelHost}/></div>
+  <div className="canvas-wrap"><SceneBoundary><Canvas camera={{position:[3.35,2.18,6.71],fov:40,near:.1,far:100}} frameloop="demand" dpr={[1,1.5]} gl={{antialias:true,alpha:true,powerPreference:'high-performance',toneMapping:THREE.ACESFilmicToneMapping,toneMappingExposure:1.12}}><Suspense fallback={null}><Studio key={atomic?'atomic':'hybrid'} config={config} clock={clock} selected={selected} onSelect={setSelected} labels={labels} stage={stage} resetKey={resetKey} guided={guided} onInteraction={()=>setGuided(false)} cameraControl={cameraControl} labelHost={labelHost} atomic={atomic} orbital={orbital} axes={axes} cutaway={cutaway} atomicSelected={atomicSelected} onAtomicSelect={setAtomicSelected} zoom={zoom} zoomProgress={zoomProgress} motion={particlesMoving} particleStyle={particleStyle} compassHost={compassHost}/></Suspense></Canvas></SceneBoundary><div className="scene-label-layer" ref={labelHost}/></div>
   <div className="ambient-vignette"/>
   <div className="orbital-readout" aria-label="Selected orbital">{atomic?<OrbitalName kind={orbital}/>:config.label}</div>
   <div className="phase-indicator" role="img" aria-label="Blue and magenta represent opposite wavefunction phases"><Waves/><span className="phase-chip"><i/><svg viewBox="0 0 12 12" stroke="currentColor"><path d="M2 6H10M6 2V10"/></svg></span><span className="phase-chip"><i/><svg viewBox="0 0 12 12" stroke="currentColor"><path d="M2 6H10"/></svg></span></div>
@@ -139,8 +141,8 @@ function App(){
    </div>
    {settings&&<div className="settings-panel" id="settings">
     <div className="style-options" role="group" aria-label="Particle appearance">
-     <button aria-label="Still probability cloud" aria-pressed={particleStyle==='still'} onClick={()=>setParticleStyle('still')}><Cloud size={20}/></button>
-     <button aria-label="Smooth internal drift" aria-pressed={particleStyle==='drift'} onClick={()=>setParticleStyle('drift')}><Waves size={20}/></button>
+     <button aria-label="Still probability cloud" aria-pressed={particleStyle==='still'} onClick={()=>{setParticleStyle('still');setMotion(false)}}><Cloud size={20}/></button>
+     <button aria-label="Smooth internal drift" aria-pressed={particleStyle==='drift'} onClick={()=>{setParticleStyle('drift');setMotion(true)}}><Waves size={20}/></button>
     </div>
     {atomic?<label className="slider-control"><ZoomIn size={18}/><input aria-label="Orbital zoom" type="range" min="0" max=".75" step=".01" value={Math.min(.75,zoomProgress)} onChange={e=>requestZoom(Number(e.target.value))}/></label>:<>
      <label className="slider-control"><Gauge size={18}/><input aria-label="Animation speed" type="range" min=".5" max="2" step=".5" value={speed} onChange={e=>setSpeed(Number(e.target.value))}/></label>
@@ -148,8 +150,8 @@ function App(){
     </>}
    </div>}
    <div className="tools-row">
-    <button className="primary" aria-label={atomic?(motion?'Pause particles':'Animate particles'):(playing?'Pause animation':'Play animation')} onClick={atomic?()=>setMotion(!motion):play}>{(atomic?motion:playing)?<Pause size={19}/>:<Play size={19}/>}</button>
-    {!atomic&&<><button aria-label="Replay" onClick={replay}><RotateCcw size={18}/></button><button aria-label="Next step" onClick={next}><SkipForward size={18}/></button></>}
+    <button className="primary" aria-label={atomic?(particlesMoving?'Pause particles':'Animate particles'):(playing?'Pause animation':'Play animation')} onClick={atomic?toggleParticles:play}>{(atomic?particlesMoving:playing)?<Pause size={19}/>:<Play size={19}/>}</button>
+    {!atomic&&<><button aria-label="Replay" onClick={replay}><RotateCcw size={18}/></button><button aria-label="Next step" onClick={next}><SkipForward size={18}/></button><button aria-label={particlesMoving?'Pause particles':'Animate particles'} aria-pressed={particlesMoving} title="Particle motion is independent of the lesson timeline" onClick={toggleParticles}><Waves size={18}/></button></>}
     <button aria-label="Show axes" aria-pressed={axes} onClick={()=>setAxes(!axes)}><Axis3D size={20}/></button>
     {atomic?(orbitalConfig.family==='s'&&orbital!=='1s'&&<button aria-label="Radial cutaway" aria-pressed={cutaway} disabled={orbitalConfig.family!=='s'||orbital==='1s'} onClick={()=>setCutaway(!cutaway)}><CircleDashed size={20}/></button>):<button aria-label="Sound" aria-pressed={sound} onClick={toggleSound}>{sound?<Volume2 size={19}/>:<VolumeX size={19}/>}</button>}
     <button aria-label="Reset camera" onClick={()=>{resetCameraControl(cameraControl.current);setReset(x=>x+1);setGuided(!atomic&&clock.current.playing)}}><Focus size={20}/></button>

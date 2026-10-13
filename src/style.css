@@ -55,6 +55,7 @@ button:focus-visible,input:focus-visible,a:focus-visible,.table-scroll:focus-vis
 .selection-row{border-bottom-color:#5271601a}.divider,.style-options{border-color:#52716025}.divider{background:#52716025}
 .tools-row .primary{background:#286d5b;color:#fff;box-shadow:0 2px 15px #286d5b22}.tools-row .primary:hover{background:#1b5848;color:#fff}
 .tools-row button:not(.primary)[aria-pressed=true]{background:#27705713}
+@media(max-width:560px){.hybrid-dock .tools-row{gap:4px;flex-wrap:wrap}}
 .variants button[aria-pressed=true]:after,.stage-dots button[aria-pressed=true] i{background:#286d5b;box-shadow:none}
 .stage-dots i{background:#a2b9ab}.slider-control,.slider-control svg{color:#446a5b}
 input[type=range]{background:#b5ccbf;accent-color:#286d5b}input[type=range]::-webkit-slider-thumb{background:#286d5b;border-color:#f3f7f1;box-shadow:0 0 0 1px #286d5b44}

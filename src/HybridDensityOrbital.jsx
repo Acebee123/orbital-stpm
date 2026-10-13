@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import {hybridMotion,TIMING} from './model.mjs';
 import {hybridSourcePosition} from './presentation-model.mjs';
 import {hybridSourceSamples,hybridDensitySamples} from './hybrid-density.mjs';
-import {particleDriftGLSL} from './particle-motion.mjs';
+import {particleDriftGLSL,advanceParticleTime} from './particle-motion.mjs';
 const targets=new Map(),sources=new Map(),xaxis=new THREE.Vector3(1,0,0);
 const direction=d=>new THREE.Quaternion().setFromUnitVectors(xaxis,new THREE.Vector3(...d));
 const vertex=`attribute vec3 targetPosition;attribute float sourcePhase;attribute float targetPhase;attribute float sampleSeed;attribute float sourceWeight;attribute float targetWeight;
@@ -34,7 +34,7 @@ export function HybridDensityOrbital({index,config,clock,selected,onSelect,label
  const initial=direction(index===0?[1,0,0]:[[1,0,0],[0,1,0],[0,0,1]][index-1]),final=direction(config.directions[index]);
  const row=new THREE.Vector3();
  useFrame(({gl},delta)=>{
-  if(motion)motionTime.current+=Math.min(delta,.1);
+  motionTime.current=advanceParticleTime(motionTime.current,delta,motion);
   const t=clock.current.time,{gather,morph}=hybridMotion(t),stretch=1;
   row.set(...hybridSourcePosition(index,config.count,gl.domElement.clientWidth<560));
   group.current.position.copy(row).multiplyScalar(1-gather);group.current.scale.setScalar(.68+.32*gather);
