@@ -131,7 +131,7 @@ function App(){
    <button aria-label="Atomic orbitals" aria-pressed={atomic} onClick={()=>navigate('atomic')}><OrbitalGlyph kind="pz"/></button>
    <button aria-label="Hybridization" aria-pressed={section==='hybrid'} onClick={()=>navigate('hybrid')}><Network size={25}/></button>
   </nav>
-  {periodic?<PeriodicTable onExplore={key=>{chooseOrbital(key);navigate('atomic')}}/>:<section className={`floating-panel ${atomic?'atomic-dock':'hybrid-dock'}`} aria-label="Orbital controls">
+  {periodic?<PeriodicTable/>:<section className={`floating-panel ${atomic?'atomic-dock':'hybrid-dock'}`} aria-label="Orbital controls">
    <div className="selection-row">
     {atomic?<><div className="families" role="group" aria-label="Orbital family">{['s','p','d'].map(f=><button key={f} aria-label={`${f} orbitals`} aria-pressed={orbitalConfig.family===f} onClick={()=>chooseOrbital(f==='s'?'1s':f==='p'?'px':'dxy')}><OrbitalGlyph kind={f==='s'?'1s':f==='p'?'px':'dxy'}/><span className="family-name">{f}</span></button>)}</div>
      <i className="divider"/><div className="variants" role="group" aria-label="Orbital selection">{Object.entries(ATOMIC).filter(([,c])=>c.family===orbitalConfig.family).map(([key,c])=><button key={key} aria-label={c.label} aria-pressed={orbital===key} onClick={()=>chooseOrbital(key)}><OrbitalGlyph kind={key}/><span className="option-name"><OrbitalName kind={key}/></span></button>)}</div></>:

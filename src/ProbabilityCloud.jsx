@@ -49,3 +49,5 @@ export function ProbabilityCloud({orbital,zoom,motion,cutaway,selected,onSelect,
  });
  return <>{clouds.map((geometry,i)=><points key={i} ref={el=>refs.current[i]=el} geometry={geometry} raycast={(raycaster,intersections)=>pick(i,raycaster,intersections)} frustumCulled={false} renderOrder={1} onClick={e=>{e.stopPropagation();onSelect(selected===0?null:0)}} onPointerOver={()=>document.body.style.cursor='pointer'} onPointerOut={()=>document.body.style.cursor='auto'}><shaderMaterial uniforms={uniforms[i]} vertexShader={vertex} fragmentShader={fragment} transparent depthWrite={false}/></points>)}</>;
 }
+
+export {vertex as probabilityVertexShader,fragment as probabilityFragmentShader};
