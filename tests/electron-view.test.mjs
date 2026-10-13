@@ -36,3 +36,12 @@ test('independent smooth sampled positions preserve radial nodes and p nodal pla
  }
  const [a,b]=electronRoster(2,2.8);assert.notDeepEqual(electronPosition(a,4),electronPosition(b,4));assert.notDeepEqual(electronPosition(a,0),electronPosition(a,4));assert.deepEqual(electronPosition(a,4),electronPosition(a,4));
 });
+
+test('hydrogen has one marker at every filled frame, confined to the 1s probability region',()=>{
+ for(let t=.3;t<=30;t+=.13){
+  for(const selection of ['follow','1s','atom']){
+   const view=electronView(1,t,selection);assert.equal(view.records.length,1);assert.equal(view.visibleCount,1);assert.equal(view.records[0].key,'1s');assert.equal(view.clouds.filter(c=>c.population>0).length,1);
+   const p=electronPosition(view.records[0],t);assert.ok(Math.hypot(...p)<1.35);
+  }
+ }
+});
