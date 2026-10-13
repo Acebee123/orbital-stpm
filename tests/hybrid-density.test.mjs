@@ -4,7 +4,7 @@ import {CONFIG} from '../src/model.mjs';
 import {probabilitySamples} from '../src/zoom-model.mjs';
 import {HYBRID_PARTICLE_COUNT,HYBRID_DISPLAY_SCALE,hybridWavefunction,hybridEnvelope,hybridSourceSamples,hybridDensitySamples,HYBRID_LOBES,hybridLobeRadius,hybridDisplayWeight} from '../src/hybrid-density.mjs';
 test('all hybrid density clouds use production count, correct wavefunction phases and smoothly bounded density',()=>{
- assert.equal(HYBRID_PARTICLE_COUNT,117040);
+ assert.equal(HYBRID_PARTICLE_COUNT,113529);
  for(const key of Object.keys(CONFIG)){
   const cloud=hybridDensitySamples(key);let inside=0,forward=0,rear=0,positive=0,negative=0;
   assert.equal(cloud.signs.length,HYBRID_PARTICLE_COUNT);

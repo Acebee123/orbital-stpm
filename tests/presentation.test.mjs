@@ -5,7 +5,7 @@ import {ATOMIC,phaseAt,S_DISPLAY_RADIUS,radialNodes} from '../src/atomic-model.m
 import {probabilitySamples,orbitalEnvelope,radialAmplitude} from '../src/zoom-model.mjs';
 import {ATOMIC_PARTICLE_COUNT,atomicCloudVisibility,ATOMIC_ROTATION,atomicDisplayPoint,HYBRID_DURATION,HYBRID_STAGES,hybridStageAt,hybridRowPosition,hybridReveal} from '../src/presentation-model.mjs';
 test('all dense atomic clouds retain their shape, phases and short tail at production sample count',()=>{
- assert.equal(ATOMIC_PARTICLE_COUNT,58520);
+ assert.equal(ATOMIC_PARTICLE_COUNT,56764);
  for(const key of Object.keys(ATOMIC)){
   const cloud=probabilitySamples(key,ATOMIC_PARTICLE_COUNT);let inside=0;
   assert.equal(cloud.signs.length,ATOMIC_PARTICLE_COUNT);
